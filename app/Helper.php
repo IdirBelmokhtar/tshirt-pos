@@ -3,7 +3,6 @@
 use App\Models\Page;
 use App\Models\Currency;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 
 if (!function_exists('imageRecover')) {
@@ -123,9 +122,9 @@ if (!function_exists('currency')) {
 }
 
 if (!function_exists('demoUserCheck')) {
-    function demoUserCheck()
+    function demoUserCheck($email = null)
     {
-        if (Auth::user()->email == 'demo@qtecsolution.net') {
+        if ($email == 'demo@qtecsolution.net') {
             return true;
         }
         return false;

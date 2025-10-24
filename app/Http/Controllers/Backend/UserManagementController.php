@@ -99,11 +99,11 @@ class UserManagementController extends Controller
 
     public function suspend($id, $status)
     {
-        if (demoUserCheck()) {
-            return back()->with('error', 'Cannot update details of demo user');
-        }
         abort_if(!auth()->user()->can('user_suspend'), 403);
         $user = User::findOrFail($id);
+        if (demoUserCheck($user->email)) {
+            return back()->with('error', 'Cannot update details of demo user');
+        }
 
         if ($user->is_suspended == $status) {
             return back()->with('error', 'User already suspended');
@@ -152,15 +152,15 @@ class UserManagementController extends Controller
 
     public function edit(Request $request, $id)
     {
-        if (demoUserCheck()) {
-            return back()->with('error', 'Cannot update details of demo user');
-        }
-
         abort_if(!auth()->user()->can('user_update'), 403);
 
         $user = User::with('roles')->findOrFail($id);
 
         if ($request->isMethod('post')) {
+            if (demoUserCheck($user->email)) {
+                return back()->with('error', 'Cannot update details of demo user');
+            }
+
             $request->validate([
                 'name' => 'required',
                 'email' => 'required|email|unique:users,email,' . $id,
