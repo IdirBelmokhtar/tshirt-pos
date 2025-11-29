@@ -18,9 +18,9 @@
                 <th>Sub Total {{currency()->symbol??''}}</th>
                 <th>Discount {{currency()->symbol??''}}</th>
                 <th>Total {{currency()->symbol??''}}</th>
-                <th>Paid {{currency()->symbol??''}}</th>
+                {{-- <th>Paid {{currency()->symbol??''}}</th>
                 <th>Due {{currency()->symbol??''}}</th>
-                <th>Status</th>
+                <th>Status</th> --}}
                 <th data-orderable="false">Action</th>
               </tr>
             </thead>
@@ -75,18 +75,18 @@
           data: 'total',
           name: 'total'
         }, 
-         {
-          data: 'paid',
-          name: 'paid'
-        },
-         {
-          data: 'due',
-          name: 'due'
-        },
-        {
-          data: 'status',
-          name: 'status'
-        },
+        //  {
+        //   data: 'paid',
+        //   name: 'paid'
+        // },
+        //  {
+        //   data: 'due',
+        //   name: 'due'
+        // },
+        // {
+        //   data: 'status',
+        //   name: 'status'
+        // },
         {
           data: 'action',
           name: 'action'

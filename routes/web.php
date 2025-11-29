@@ -80,6 +80,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::match(['get', 'post'], 'orders/due/collection/{id}', [OrderController::class, 'collection'])->name('due.collection');
     Route::get('collection/invoice/{id}', [OrderController::class, 'collectionInvoice'])->name('collectionInvoice');
     Route::resource('categories', CategoryController::class);
+    Route::get('products/barcode/{id}', [ProductController::class, 'barcode'])->name('products.barcode');
     //start report
 
     Route::get('/sale/summery', [ReportController::class, 'saleSummery'])->name('sale.summery');

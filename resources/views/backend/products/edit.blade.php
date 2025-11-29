@@ -24,7 +24,7 @@
               Sku
               <span class="text-danger">*</span>
             </label>
-            <input type="text" class="form-control" placeholder="Enter sku" name="sku"
+            <input type="text" class="form-control" placeholder="Enter sku" name="sku" readonly
               value="{{ old('sku',$product->sku)}}" required>
           </div>
           <div class="mb-3 col-md-6">

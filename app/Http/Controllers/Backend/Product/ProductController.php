@@ -15,6 +15,8 @@ use App\Models\Unit;
 use App\Trait\FileHandler;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\DB;
+use Picqer\Barcode\BarcodeGeneratorPNG;
 use Yajra\DataTables\DataTables;
 
 class ProductController extends Controller
@@ -53,12 +55,13 @@ class ProductController extends Controller
                     : '<span class="badge bg-danger">Inactive</span>')
                 ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
-                    <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
+                    <a class="btn btn-primary btn-sm" href="' . route('backend.admin.products.barcode', $data->id) . '"><i class="fas fa-file-invoice"></i> Barcode</a>
                     <button type="button" class="btn bg-gradient-primary btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
-                      <span class="sr-only">Toggle Dropdown</span>
+                    Action  
+                    <span class="sr-only">Toggle Dropdown</span>
                     </button>
                     <div class="dropdown-menu" role="menu">
-                      <a class="dropdown-item" href="'.route('backend.admin.products.edit', $data->id). '">
+                      <a class="dropdown-item" href="' . route('backend.admin.products.edit', $data->id) . '">
                     <i class="fas fa-edit"></i> Edit
                 </a> <div class="dropdown-divider"></div>
 <form action="' . route('backend.admin.products.destroy', $data->id) . '"method="POST" style="display:inline;">
@@ -118,6 +121,18 @@ class ProductController extends Controller
 
         abort_if(!auth()->user()->can('product_create'), 403);
         $validated = $request->validated();
+
+        if (empty($validated['sku'])) {
+            
+            
+            $maxSku = Product::where('sku', 'like', 'N%')
+                ->select(DB::raw('MAX(CAST(SUBSTRING(sku, 2) AS UNSIGNED)) as max_number'))
+                ->first();
+
+            $number = $maxSku->max_number ? $maxSku->max_number + 1 : 1;
+            $validated['sku'] = 'N' . str_pad($number, 5, '0', STR_PAD_LEFT);
+        }
+        
         $product = Product::create($validated);
         if ($request->hasFile("product_image")) {
             $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
@@ -194,5 +209,19 @@ class ProductController extends Controller
             return redirect()->back()->with('success', 'Products imported successfully.');
         }
         return view('backend.products.import');
+    }
+
+    public function barcode($id)
+    {
+        $product = Product::findOrFail($id);
+
+        $generator = new BarcodeGeneratorPNG();
+        $barcodeData = $generator->getBarcode($product->sku, $generator::TYPE_CODE_128);
+
+        // IMPORTANT: encode to base64
+        $barcode = base64_encode($barcodeData);
+
+
+        return view('backend.products.barcode', compact('product', 'barcode'));
     }
 }

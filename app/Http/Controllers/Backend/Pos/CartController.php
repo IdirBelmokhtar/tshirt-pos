@@ -119,7 +119,10 @@ class CartController extends Controller
         ]);
         $cart = PosCart::findOrFail($request->id);
         if ($cart->quantity <= 1) {
-            return response()->json(['message' => 'Quantity cannot be less than 1.'], 400);
+            $cart = PosCart::findOrFail($request->id);
+            $cart->delete();
+            return response()->json(['message' => 'Item successfully deleted'], 200);
+            // return response()->json(['message' => 'Quantity cannot be less than 1.'], 400);
         }
         $cart->quantity = $cart->quantity - 1;
         $cart->save();

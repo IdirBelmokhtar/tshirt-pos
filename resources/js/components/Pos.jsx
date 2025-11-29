@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import Cart from "./Cart";
@@ -26,9 +26,8 @@ export default function Pos() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [loading, setLoading] = useState(false);
-    const fullDomainWithPort = `${protocol}//${hostname}${
-        port ? `:${port}` : ""
-    }`;
+    const fullDomainWithPort = `${protocol}//${hostname}${port ? `:${port}` : ""
+        }`;
     const getProducts = useCallback(
         async (search = "", page = 1, barcode = "") => {
             setLoading(true);
@@ -43,6 +42,23 @@ export default function Pos() {
                     getCarts();
                 }
                 setTotalPages(productsData.meta.last_page); // Get total pages
+
+                // Here i verifie every caracter of searchBarcode is written
+                setSearchBarcode("");
+                if (barcode === " ") { // SPACE → Checkout
+                    document.getElementById("checkoutBtn").click();
+                }
+                if (barcode === "0") { // 0 → Clear
+                    document.querySelector(".btn.bg-gradient-danger").click();
+                }
+                if (barcode === "-") { // - → Open Discount
+                    if (updateTotal <= 0) {
+
+                        getProducts("", currentPage, "");
+                    }
+                    document.querySelector('input[placeholder="Enter discount"]').click();
+                }
+
             } catch (error) {
                 console.error("Error fetching products:", error);
             } finally {
@@ -110,7 +126,7 @@ export default function Pos() {
     useEffect(() => {
         if (searchBarcode) {
             setProducts([]);
-           getProducts("", currentPage, searchBarcode);
+            getProducts("", currentPage, searchBarcode);
         }
     }, [searchBarcode]);
 
@@ -134,13 +150,61 @@ export default function Pos() {
         };
     }, [currentPage, totalPages]);
 
+    // Keyboard Shortcuts
+    useEffect(() => {
+        const handleShortcuts = (e) => {
+            const active = document.activeElement;
+            const tag = active && active.tagName ? active.tagName.toLowerCase() : null;
+            const isEditable =
+                tag === "input" ||
+                tag === "textarea" ||
+                tag === "select" ||
+                (active && active.isContentEditable);
+
+            // SPACE → Checkout
+            if (e.code === "Space" && !isEditable) {
+                e.preventDefault();
+                const checkoutBtn = document.getElementById("checkoutBtn");
+                if (checkoutBtn) checkoutBtn.click();
+            }
+
+            // DELETE / BACKSPACE → Clear
+            if ((e.code === "Delete" || e.code === "Backspace") && !isEditable) {
+                const clearBtn = document.querySelector(".btn.bg-gradient-danger");
+                if (clearBtn) clearBtn.click();
+            }
+
+            // CTRL → Focus barcode input
+            if (e.ctrlKey && !isEditable) {
+                const barcodeEl = document.getElementById("barcodeInput");
+                if (barcodeEl) barcodeEl.focus();
+            }
+
+            // % key (Shift + 5) → Open Discount
+            if (e.shiftKey && e.code === "Digit5" && !isEditable) {
+                e.preventDefault();
+                const discountInput = document.querySelector('input[placeholder="Enter discount"]');
+                if (discountInput) discountInput.click();
+            }
+        };
+
+        window.addEventListener("keydown", handleShortcuts);
+        return () => window.removeEventListener("keydown", handleShortcuts);
+    }, [total, orderDiscount]);
+
     function addProductToCart(id) {
         axios
             .post("/admin/cart", { id })
             .then((res) => {
                 setCartUpdated(!cartUpdated);
+                setSearchQuery("");
                 playSound(SuccessSound);
                 toast.success(res?.data?.message);
+                setSearchBarcode("");
+                const barcodeEl = document.getElementById("barcodeInput");
+                if (barcodeEl) {
+                    barcodeEl.focus();
+                }
             })
             .catch((err) => {
                 playSound(WarningSound);
@@ -148,37 +212,56 @@ export default function Pos() {
             });
     }
     function cartEmpty() {
-        if (total <= 0) {
-            return;
-        }
-        Swal.fire({
-            title: "Are you sure you want to delete Cart?",
-            showDenyButton: true,
-            confirmButtonText: "Yes",
-            denyButtonText: "No",
-            customClass: {
-                actions: "my-actions",
-                cancelButton: "order-1 right-gap",
-                confirmButton: "order-2",
-                denyButton: "order-3",
-            },
-        }).then((result) => {
-            if (result.isConfirmed) {
-                axios
-                    .put("/admin/cart/empty")
-                    .then((res) => {
-                        setCartUpdated(!cartUpdated);
-                        playSound(SuccessSound);
-                        toast.success(res?.data?.message);
-                    })
-                    .catch((err) => {
-                        playSound(WarningSound);
-                        toast.error(err.response.data.message);
-                    });
-            } else if (result.isDenied) {
-                return;
-            }
-        });
+        // if (total <= 0) {
+        //     return;
+        // }
+
+        axios
+            .put("/admin/cart/empty")
+            .then((res) => {
+                setCartUpdated(!cartUpdated);
+                setOrderDiscount(0);
+                setProductUpdated(!productUpdated);
+                setSearchQuery("");
+                playSound(SuccessSound);
+                toast.success(res?.data?.message);
+            })
+            .catch((err) => {
+                playSound(WarningSound);
+                toast.error(err.response.data.message);
+            });
+
+        // Swal.fire({
+        //     title: "Are you sure you want to delete Cart?",
+        //     showDenyButton: true,
+        //     confirmButtonText: "Yes",
+        //     denyButtonText: "No",
+        //     customClass: {
+        //         actions: "my-actions",
+        //         cancelButton: "order-1 right-gap",
+        //         confirmButton: "order-2",
+        //         denyButton: "order-3",
+        //     },
+        // }).then((result) => {
+        //     if (result.isConfirmed) {
+        //         axios
+        //             .put("/admin/cart/empty")
+        //             .then((res) => {
+        //                 setCartUpdated(!cartUpdated);
+        //                 setOrderDiscount(0);
+        //                 setProductUpdated(!productUpdated);
+        //                 setSearchQuery("");
+        //                 playSound(SuccessSound);
+        //                 toast.success(res?.data?.message);
+        //             })
+        //             .catch((err) => {
+        //                 playSound(WarningSound);
+        //                 toast.error(err.response.data.message);
+        //             });
+        //     } else if (result.isDenied) {
+        //         return;
+        //     }
+        // });
     }
     function orderCreate() {
         if (total <= 0) {
@@ -188,57 +271,114 @@ export default function Pos() {
             toast.error("Please select customer");
             return;
         }
-        Swal.fire({
-            title: `Are you sure you want to complete this order? <br>Due: ${due}`,
-            showDenyButton: true,
-            confirmButtonText: "Yes",
-            denyButtonText: "No",
-            customClass: {
-                actions: "my-actions",
-                cancelButton: "order-1 right-gap",
-                confirmButton: "order-2",
-                denyButton: "order-3",
-            },
-        }).then((result) => {
-            if (result.isConfirmed) {
+
+        axios
+            .put("/admin/order/create", {
+                customer_id: customerId,
+                order_discount: parseFloat(orderDiscount) || 0,
+                paid: parseFloat(paid) || 0,
+            })
+            .then((res) => {
                 axios
-                    .put("/admin/order/create", {
-                        customer_id: customerId,
-                        order_discount: parseFloat(orderDiscount) || 0,
-                        paid: parseFloat(paid) || 0,
-                    })
+                    .put("/admin/cart/empty")
                     .then((res) => {
                         setCartUpdated(!cartUpdated);
+                        setOrderDiscount(0);
                         setProductUpdated(!productUpdated);
+                        setSearchQuery("");
+                        playSound(SuccessSound);
                         toast.success(res?.data?.message);
-                        // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
-                        window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
                     })
                     .catch((err) => {
+                        playSound(WarningSound);
                         toast.error(err.response.data.message);
                     });
-            } else if (result.isDenied) {
-                return;
-            }
-        });
+                // setCartUpdated(!cartUpdated);
+                // setProductUpdated(!productUpdated);
+                // toast.success(res?.data?.message);
+                // // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
+                // window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
+            })
+            .catch((err) => {
+                toast.error(err.response.data.message);
+            });
+
+        // Swal.fire({
+        //     title: `Are you sure you want to complete this order? <br>Due: ${due}`,
+        //     showDenyButton: true,
+        //     confirmButtonText: "Yes",
+        //     denyButtonText: "No",
+        //     customClass: {
+        //         actions: "my-actions",
+        //         cancelButton: "order-1 right-gap",
+        //         confirmButton: "order-2",
+        //         denyButton: "order-3",
+        //     },
+        // }).then((result) => {
+        //     if (result.isConfirmed) {
+        //         axios
+        //             .put("/admin/order/create", {
+        //                 customer_id: customerId,
+        //                 order_discount: parseFloat(orderDiscount) || 0,
+        //                 paid: parseFloat(paid) || 0,
+        //             })
+        //             .then((res) => {
+        //                 axios
+        //                     .put("/admin/cart/empty")
+        //                     .then((res) => {
+        //                         setCartUpdated(!cartUpdated);
+        //                         playSound(SuccessSound);
+        //                         toast.success(res?.data?.message);
+        //                     })
+        //                     .catch((err) => {
+        //                         playSound(WarningSound);
+        //                         toast.error(err.response.data.message);
+        //                     });
+        //                 // setCartUpdated(!cartUpdated);
+        //                 // setProductUpdated(!productUpdated);
+        //                 // toast.success(res?.data?.message);
+        //                 // // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
+        //                 // window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
+        //             })
+        //             .catch((err) => {
+        //                 toast.error(err.response.data.message);
+        //             });
+        //     } else if (result.isDenied) {
+        //         return;
+        //     }
+        // });
     }
     return (
         <>
             <div className="card">
-                {/* <div class="mt-n5 mb-3 d-flex justify-content-end">
-                    <a
+                <div class="mt-n5 mb-3 d-flex justify-content-end">
+                    {/* <a
                         href="/admin"
                         className="btn bg-gradient-primary mr-2"
                     >
                         Dashboard
-                    </a>
+                    </a> */}
                     <a
-                        href="/admin/ordersma"
+                        href="/admin/orders"
                         className="btn bg-gradient-primary"
                     >
-                        Orders
+                        Sale List
                     </a>
-                </div> */}
+                </div>
+
+
+
+                <div className="mb-3">
+                    <div className="card bg-primary text-white">
+                        <div className="card-body d-flex justify-content-between align-items-center py-4">
+                            <div className="text-center w-100">
+                                <div style={{ fontSize: "6rem", fontWeight: 700 }}>
+                                    {updateTotal || "0"} DA
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <div className="card-body p-2 p-md-4 pt-0">
                     <div className="row">
@@ -280,6 +420,7 @@ export default function Pos() {
                                         <div className="col">Discount:</div>
                                         <div className="col text-right mr-2">
                                             <input
+                                                // hidden
                                                 type="number"
                                                 className="form-control form-control-sm"
                                                 placeholder="Enter discount"
@@ -291,17 +432,74 @@ export default function Pos() {
                                                         e.target.value;
                                                     if (
                                                         parseFloat(value) >
-                                                            total ||
+                                                        total ||
                                                         parseFloat(value) < 0
                                                     ) {
                                                         return;
                                                     }
                                                     setOrderDiscount(value);
                                                 }}
+                                                onClick={() => {
+                                                    Swal.fire({
+                                                        title: 'Enter Discount',
+                                                        input: 'number',
+                                                        inputAttributes: {
+                                                            'aria-label': 'Enter your discount'
+                                                        },
+                                                        inputPlaceholder: 'Enter discount',
+                                                        showCancelButton: true,
+                                                        confirmButtonText: 'Yes',
+                                                        cancelButtonText: 'No',
+                                                        inputValidator: (value) => {
+                                                            if (!value) {
+                                                                return 'You need to write something!';
+                                                            }
+                                                            const parsedValue = parseFloat(value);
+                                                            if (parsedValue < 0 || parsedValue > total) {
+                                                                return 'Invalid discount value!';
+                                                            }
+                                                            setOrderDiscount(parsedValue);
+                                                        }
+                                                    });
+                                                }}
                                             />
                                         </div>
+
+
+                                        {/* <div className="col-6">
+                                            <form className="form" onClick={() => {
+                                                Swal.fire({
+                                                    title: 'Enter Discount',
+                                                    input: 'number',
+                                                    inputAttributes: {
+                                                        'aria-label': 'Enter your discount'
+                                                    },
+                                                    inputPlaceholder: 'Enter discount',
+                                                    showCancelButton: true,
+                                                    confirmButtonText: 'Yes',
+                                                    cancelButtonText: 'No',
+                                                    inputValidator: (value) => {
+                                                        if (!value) {
+                                                            return 'You need to write something!';
+                                                        }
+                                                        const parsedValue = parseFloat(value);
+                                                        if (parsedValue < 0 || parsedValue > total) {
+                                                            return 'Invalid discount value!';
+                                                        }
+                                                        setOrderDiscount(parsedValue);
+                                                    }
+                                                });
+                                            }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Click to enter discount"
+                                                    value={orderDiscount}
+                                                    readOnly
+                                                />
+                                            </form>
+                                        </div> */}
                                     </div>
-                                    <div className="row text-bold mb-1">
+                                    {/* <div className="row text-bold mb-1">
                                         <div className="col">
                                             Apply Fractional Discount:
                                         </div>
@@ -321,18 +519,20 @@ export default function Pos() {
                                                         );
                                                     } else {
                                                         setOrderDiscount(0);
+                                                        setProductUpdated(!productUpdated);
+                                                        setSearchQuery("");
                                                     }
                                                 }}
                                             />
                                         </div>
-                                    </div>
+                                    </div> */}
                                     <div className="row text-bold mb-1">
                                         <div className="col">Total:</div>
                                         <div className="col text-right mr-2">
                                             {updateTotal}
                                         </div>
                                     </div>
-                                    <div className="row text-bold mb-1">
+                                    {/* <div className="row text-bold mb-1">
                                         <div className="col">Paid:</div>
                                         <div className="col text-right mr-2">
                                             <input
@@ -348,7 +548,7 @@ export default function Pos() {
                                                     if (
                                                         parseFloat(value) < 0 ||
                                                         parseFloat(value) >
-                                                            updateTotal
+                                                        updateTotal
                                                     ) {
                                                         return;
                                                     }
@@ -362,7 +562,7 @@ export default function Pos() {
                                         <div className="col text-right mr-2">
                                             {due}
                                         </div>
-                                    </div>
+                                    </div> */}
                                 </div>
                             </div>
                             <div className="row">
@@ -377,11 +577,12 @@ export default function Pos() {
                                 </div>
                                 <div className="col">
                                     <button
+                                        id="checkoutBtn"
                                         onClick={() => {
                                             orderCreate();
                                         }}
                                         type="button"
-                                        className="btn bg-gradient-primary btn-block text-white text-bold"
+                                        className="btn bg-gradient-success btn-block text-white text-bold"
                                     >
                                         Checkout
                                     </button>
@@ -389,14 +590,46 @@ export default function Pos() {
                             </div>
                         </div>
                         <div className="col-md-6 col-lg-7">
+                            {/* Ensure a global CapsLock listener is added once; when CapsLock is active focus the barcode input */}
+                            {(() => {
+                                if (!window.__barcodeAlwaysFocusAdded) {
+                                    window.__barcodeAlwaysFocusAdded = true;
+                                    window.__barcodeFocusHandler = function (e) {
+                                        try {
+                                            const el = document.getElementById("barcodeInput");
+                                            if (!el) return;
+                                            const target = e.target;
+                                            // If user clicked/focused the barcode input itself, do nothing
+                                            if (target && (target.id === "barcodeInput" || target.closest && target.closest('#barcodeInput'))) {
+                                                return;
+                                            }
+                                            // Always refocus the barcode input (use timeout so original event completes)
+                                            setTimeout(() => {
+                                                el.focus();
+                                                if (el.setSelectionRange) {
+                                                    const len = el.value.length;
+                                                    el.setSelectionRange(len, len);
+                                                }
+                                            }, 10);
+                                        } catch (err) {
+                                            // ignore
+                                        }
+                                    };
+                                    document.addEventListener("focusin", window.__barcodeFocusHandler, true);
+                                    document.addEventListener("mousedown", window.__barcodeFocusHandler, true);
+                                    document.addEventListener("touchstart", window.__barcodeFocusHandler, true);
+                                }
+                                return null;
+                            })()}
                             <div className="row">
                                 <div className="input-group mb-2 col-md-6">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text">
-                                            <i class="fas fa-barcode"></i>
+                                    <div className="input-group-prepend">
+                                        <span className="input-group-text">
+                                            <i className="fas fa-barcode"></i>
                                         </span>
                                     </div>
                                     <input
+                                        id="barcodeInput"
                                         type="text"
                                         className="form-control"
                                         placeholder="Enter Product Barcode"
@@ -404,8 +637,7 @@ export default function Pos() {
                                         autoFocus
                                         onChange={(e) =>
                                             setSearchBarcode(e.target.value)
-                                        }
-                                    />
+                                        } />
                                 </div>
                                 <div className="mb-2 col-md-6">
                                     <input
@@ -416,6 +648,22 @@ export default function Pos() {
                                         onChange={(e) =>
                                             setSearchQuery(e.target.value)
                                         }
+                                        onClick={() => {
+                                            Swal.fire({
+                                                title: 'Enter Product Name',
+                                                input: 'text',
+                                                inputAttributes: {
+                                                    'aria-label': 'Enter your Product Name'
+                                                },
+                                                confirmButtonText: 'Search',
+                                                inputValidator: (value) => {
+                                                    if (!value) {
+                                                        return 'You need to write something!';
+                                                    }
+                                                    setSearchQuery(value);
+                                                }
+                                            });
+                                        }}
                                     />
                                 </div>
                             </div>
@@ -444,8 +692,8 @@ export default function Pos() {
                                                 />
                                                 <div className="product-details">
                                                     <p className="mb-0 text-bold product-name">
-                                                        {product.name} (
-                                                        {product.quantity})
+                                                        {product.name}
+                                                        ({product.quantity})
                                                     </p>
                                                     <p>
                                                         Price:{" "}

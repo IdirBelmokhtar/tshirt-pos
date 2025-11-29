@@ -38,20 +38,8 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
             });
     }
     function destroy(id) {
-        Swal.fire({
-            title: "Are you sure you want to delete this item?",
-            showDenyButton: true,
-            confirmButtonText: "Yes",
-            denyButtonText: "No",
-            customClass: {
-                actions: "my-actions",
-                cancelButton: "order-1 right-gap",
-                confirmButton: "order-2",
-                denyButton: "order-3",
-            },
-        }).then((result) => {
-            if (result.isConfirmed) {
-                axios
+
+        axios
                     .put("/admin/cart/delete", {
                         id: id,
                     })
@@ -64,10 +52,37 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                     .catch((err) => {
                         toast.error(err.response.data.message);
                     });
-            } else if (result.isDenied) {
-                return;
-            }
-        });
+
+        // Swal.fire({
+        //     title: "Are you sure you want to delete this item?",
+        //     showDenyButton: true,
+        //     confirmButtonText: "Yes",
+        //     denyButtonText: "No",
+        //     customClass: {
+        //         actions: "my-actions",
+        //         cancelButton: "order-1 right-gap",
+        //         confirmButton: "order-2",
+        //         denyButton: "order-3",
+        //     },
+        // }).then((result) => {
+        //     if (result.isConfirmed) {
+        //         axios
+        //             .put("/admin/cart/delete", {
+        //                 id: id,
+        //             })
+        //             .then((res) => {
+        //                 console.log(res);
+        //                 setCartUpdated(!cartUpdated);
+        //                 playSound(SuccessSound);
+        //                 toast.success(res?.data?.message);
+        //             })
+        //             .catch((err) => {
+        //                 toast.error(err.response.data.message);
+        //             });
+        //     } else if (result.isDenied) {
+        //         return;
+        //     }
+        // });
     }
     return (
         <>

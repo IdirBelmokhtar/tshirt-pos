@@ -23,8 +23,8 @@
               Sku
               <span class="text-danger">*</span>
             </label>
-            <input type="text" class="form-control" placeholder="Enter sku" name="sku"
-              value="{{ old('sku') }}" required>
+            <input type="text" class="form-control" placeholder="Enter sku" name="sku" 
+              value="{{ old('sku') }}" >
           </div>
           <div class="mb-3 col-md-6">
             <label for="brand_id" class="form-label">

@@ -43,7 +43,7 @@
             @if(readConfig('is_show_site_invoice'))<strong>Name:{{ readConfig('site_name') }}</strong><br> @endif
             @if(readConfig('is_show_address_invoice'))Address: {{ readConfig('contact_address') }}<br>@endif
             @if(readConfig('is_show_phone_invoice'))Phone: {{ readConfig('contact_phone') }}<br>@endif
-            @if(readConfig('is_show_email_invoice'))Email: {{ readConfig('contact_email') }}<br>@endif
+            {{-- @if(readConfig('is_show_email_invoice'))Email: {{ readConfig('contact_email') }}<br>@endif --}}
           </address>
         </div>
         <!-- /.col -->
@@ -69,7 +69,7 @@
                 <th>Product</th>
                 <th>Quantity</th>
                 <th>Price {{currency()->symbol??''}}</th>
-                <th>Subtotal {{currency()->symbol??''}}</th>
+                {{-- <th>Subtotal {{currency()->symbol??''}}</th> --}}
               </tr>
             </thead>
             <tbody>
@@ -80,11 +80,11 @@
                 <td>{{$item->quantity}} {{optional($item->product->unit)->short_name}}</td>
                 <td>
                   {{$item->discounted_price }}
-                  @if ($item->price>$item->discounted_price)
+                  {{-- @if ($item->price>$item->discounted_price)
                   <br><del>{{ $item->price }}</del>
-                  @endif
+                  @endif --}}
                 </td>
-                <td>{{$item->total}}</td>
+                {{-- <td>{{$item->total}}</td> --}}
               </tr>
               @endforeach
             </tbody>
@@ -121,25 +121,25 @@
                 <th>Total:</th>
                 <td class="text-right">{{currency()->symbol.' '.number_format($order->total,2,'.',',')}}</td>
               </tr>
-              <tr>
+              {{-- <tr>
                 <th>Paid:</th>
                 <td class="text-right">{{currency()->symbol.' '.number_format($order->paid,2,'.',',')}}</td>
               </tr>
               <tr>
                 <th>Due:</th>
                 <td class="text-right">{{currency()->symbol.' '.number_format($order->due,2,'.',',')}}</td>
-              </tr>
+              </tr> --}}
             </table>
           </div>
         </div>
         <!-- /.col -->
       </div>
-      <div class="row no-print">
+      {{-- <div class="row no-print">
         <div class="col-12">
           <button type="button" onclick="window.print()" class="btn btn-success float-right"><i class="fas fa-print"></i> Print</a>
           </button>
         </div>
-      </div>
+      </div> --}}
       <!-- /.row -->
     </section>
     <!-- /.content -->
@@ -154,8 +154,8 @@
   }
 </style>
 @endpush
-@push('script')
+{{-- @push('script')
 <script>
   window.addEventListener("load", window.print());
 </script>
-@endpush
+@endpush --}}
