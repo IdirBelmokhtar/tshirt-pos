@@ -22,9 +22,11 @@ class CartController extends Controller
                     $item->row_total = round(($item->quantity * $item->product->discounted_price),2);
                     return $item;
                 });
+            $discount = $cartItems->sum('discount');
             $total = $cartItems->sum('row_total');
             return response()->json([
                 'carts' => $cartItems,
+                'discount' => $discount,
                 'total' => round($total, 2)
             ]);
         }
@@ -138,6 +140,18 @@ class CartController extends Controller
         $cart->delete();
 
         return response()->json(['message' => 'Item successfully deleted'], 200);
+    }
+    public function discount(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|integer|exists:pos_carts,id',
+            'discount' => 'required|numeric|min:0'
+        ]);
+        $cart = PosCart::findOrFail($request->id);
+        
+        $cart->discount = $request->discount;
+        $cart->save();
+        return response()->json(['message' => 'Cart Updated successfully'], 200);
     }
     public function empty()
     {

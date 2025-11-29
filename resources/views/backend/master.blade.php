@@ -173,7 +173,7 @@
         </div>
         <!-- /.content-wrapper -->
 
-        @include('backend.layouts.footer')
+        {{-- @include('backend.layouts.footer') --}}
 
     </div>
     <!-- ./wrapper -->

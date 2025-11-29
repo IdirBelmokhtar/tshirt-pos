@@ -94,6 +94,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::put('/cart/increment', [CartController::class, 'increment']);
     Route::put('/cart/decrement', [CartController::class, 'decrement']);
     Route::put('/cart/delete', [CartController::class, 'delete']);
+    Route::put('/cart/discount', [CartController::class, 'discount']);
     Route::put('/cart/empty', [CartController::class, 'empty']);
     Route::put('/order/create', [OrderController::class, 'store']);
     Route::get('/get/customers',[CustomerController::class,'getCustomers']);

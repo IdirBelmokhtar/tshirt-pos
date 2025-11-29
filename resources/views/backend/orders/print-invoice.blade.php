@@ -69,6 +69,8 @@
                 <th>Product</th>
                 <th>Quantity</th>
                 <th>Price {{currency()->symbol??''}}</th>
+                <th>Discount {{currency()->symbol??''}}</th>
+                <th>Row Total {{currency()->symbol??''}}</th>
                 {{-- <th>Subtotal {{currency()->symbol??''}}</th> --}}
               </tr>
             </thead>
@@ -85,6 +87,8 @@
                   @endif --}}
                 </td>
                 {{-- <td>{{$item->total}}</td> --}}
+                <td>{{$item->discount}}</td>
+                <td>{{$item->total - $item->discount}}</td>
               </tr>
               @endforeach
             </tbody>

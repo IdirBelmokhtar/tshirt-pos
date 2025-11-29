@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import Cart from "./Cart";
@@ -26,8 +26,20 @@ export default function Pos() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [loading, setLoading] = useState(false);
+    // NEW: State to track barcode input focus
+    const [isBarcodeFocused, setIsBarcodeFocused] = useState(true);
+    // NEW: State to track if any dialog is open
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    // NEW: Ref to track dialog open state for event listeners
+    const isDialogOpenRef = useRef(false);
     const fullDomainWithPort = `${protocol}//${hostname}${port ? `:${port}` : ""
         }`;
+    
+    // NEW: Update ref when state changes
+    useEffect(() => {
+        isDialogOpenRef.current = isDialogOpen;
+    }, [isDialogOpen]);
+
     const getProducts = useCallback(
         async (search = "", page = 1, barcode = "") => {
             setLoading(true);
@@ -58,6 +70,9 @@ export default function Pos() {
                     }
                     document.querySelector('input[placeholder="Enter discount"]').click();
                 }
+                if (barcode === "+") { // + → Ajouter autre article
+
+                }
 
             } catch (error) {
                 console.error("Error fetching products:", error);
@@ -86,6 +101,7 @@ export default function Pos() {
             const res = await axios.get('/admin/cart');
             const data = res.data;
             setTotal(data?.total);
+            setOrderDiscount(data?.discount);
             setUpdateTotal(data?.total - orderDiscount);
             setCarts(data?.carts);
         } catch (error) {
@@ -150,47 +166,109 @@ export default function Pos() {
         };
     }, [currentPage, totalPages]);
 
-    // Keyboard Shortcuts
-    useEffect(() => {
-        const handleShortcuts = (e) => {
-            const active = document.activeElement;
-            const tag = active && active.tagName ? active.tagName.toLowerCase() : null;
-            const isEditable =
-                tag === "input" ||
-                tag === "textarea" ||
-                tag === "select" ||
-                (active && active.isContentEditable);
+    // NEW: Function to focus on barcode input
+    const focusBarcodeInput = () => {
+        // Don't focus if dialog is open
+        if (isDialogOpenRef.current) return;
+        
+        const barcodeEl = document.getElementById("barcodeInput");
+        if (barcodeEl) {
+            barcodeEl.focus();
+            setIsBarcodeFocused(true);
+        }
+    };
 
-            // SPACE → Checkout
-            if (e.code === "Space" && !isEditable) {
-                e.preventDefault();
-                const checkoutBtn = document.getElementById("checkoutBtn");
-                if (checkoutBtn) checkoutBtn.click();
-            }
+    // NEW: Function to handle barcode focus
+    const handleBarcodeFocus = () => {
+        setIsBarcodeFocused(true);
+    };
 
-            // DELETE / BACKSPACE → Clear
-            if ((e.code === "Delete" || e.code === "Backspace") && !isEditable) {
-                const clearBtn = document.querySelector(".btn.bg-gradient-danger");
-                if (clearBtn) clearBtn.click();
-            }
+    // NEW: Function to handle barcode blur
+    const handleBarcodeBlur = () => {
+        setIsBarcodeFocused(false);
+    };
 
-            // CTRL → Focus barcode input
-            if (e.ctrlKey && !isEditable) {
-                const barcodeEl = document.getElementById("barcodeInput");
-                if (barcodeEl) barcodeEl.focus();
-            }
+    // NEW: Function to open dialog with proper focus handling
+    const openDialog = (dialogType) => {
+        setIsDialogOpen(true);
+        setIsBarcodeFocused(false);
+        
+        if (dialogType === 'discount') {
+            Swal.fire({
+                title: 'Enter Discount',
+                input: 'number',
+                inputAttributes: {
+                    'aria-label': 'Enter your discount',
+                    'autofocus': 'true'
+                },
+                inputPlaceholder: 'Enter discount',
+                showCancelButton: true,
+                confirmButtonText: 'Apply',
+                cancelButtonText: 'Cancel',
+                allowEnterKey: true,
+                preConfirm: () => {
+                    // This will be called when confirm button is clicked
+                },
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'You need to write something!';
+                    }
+                    const parsedValue = parseFloat(value);
+                    if (parsedValue < 0 || parsedValue > total) {
+                        return 'Invalid discount value!';
+                    }
+                    setOrderDiscount(parsedValue);
+                }
+            }).then((result) => {
+                setIsDialogOpen(false);
+                if (result.isConfirmed || result.isDismissed) {
+                    // Use longer timeout to ensure Swal is completely gone
+                    setTimeout(focusBarcodeInput, 500);
+                }
+            });
 
-            // % key (Shift + 5) → Open Discount
-            if (e.shiftKey && e.code === "Digit5" && !isEditable) {
-                e.preventDefault();
-                const discountInput = document.querySelector('input[placeholder="Enter discount"]');
-                if (discountInput) discountInput.click();
-            }
-        };
+            // NEW: Manually focus the input after a delay to ensure Swal is rendered
+            setTimeout(() => {
+                const swalInput = document.querySelector('.swal2-input');
+                if (swalInput) {
+                    swalInput.focus();
+                }
+            }, 300);
 
-        window.addEventListener("keydown", handleShortcuts);
-        return () => window.removeEventListener("keydown", handleShortcuts);
-    }, [total, orderDiscount]);
+        } else if (dialogType === 'productSearch') {
+            Swal.fire({
+                title: 'Enter Product Name',
+                input: 'text',
+                inputAttributes: {
+                    'aria-label': 'Enter your Product Name',
+                    'autofocus': 'true'
+                },
+                confirmButtonText: 'Search',
+                showCancelButton: true,
+                cancelButtonText: 'Cancel',
+                allowEnterKey: true,
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'You need to write something!';
+                    }
+                    setSearchQuery(value);
+                }
+            }).then((result) => {
+                setIsDialogOpen(false);
+                if (result.isConfirmed || result.isDismissed) {
+                    setTimeout(focusBarcodeInput, 500);
+                }
+            });
+
+            // NEW: Manually focus the input after a delay to ensure Swal is rendered
+            setTimeout(() => {
+                const swalInput = document.querySelector('.swal2-input');
+                if (swalInput) {
+                    swalInput.focus();
+                }
+            }, 300);
+        }
+    };
 
     function addProductToCart(id) {
         axios
@@ -201,21 +279,17 @@ export default function Pos() {
                 playSound(SuccessSound);
                 toast.success(res?.data?.message);
                 setSearchBarcode("");
-                const barcodeEl = document.getElementById("barcodeInput");
-                if (barcodeEl) {
-                    barcodeEl.focus();
-                }
+                // NEW: Focus back to barcode after adding product
+                setTimeout(focusBarcodeInput, 100);
             })
             .catch((err) => {
                 playSound(WarningSound);
                 toast.error(err.response.data.message);
+                // NEW: Focus back to barcode even on error
+                setTimeout(focusBarcodeInput, 100);
             });
     }
     function cartEmpty() {
-        // if (total <= 0) {
-        //     return;
-        // }
-
         axios
             .put("/admin/cart/empty")
             .then((res) => {
@@ -225,43 +299,15 @@ export default function Pos() {
                 setSearchQuery("");
                 playSound(SuccessSound);
                 toast.success(res?.data?.message);
+                // NEW: Focus back to barcode after clearing cart
+                setTimeout(focusBarcodeInput, 100);
             })
             .catch((err) => {
                 playSound(WarningSound);
                 toast.error(err.response.data.message);
+                // NEW: Focus back to barcode even on error
+                setTimeout(focusBarcodeInput, 100);
             });
-
-        // Swal.fire({
-        //     title: "Are you sure you want to delete Cart?",
-        //     showDenyButton: true,
-        //     confirmButtonText: "Yes",
-        //     denyButtonText: "No",
-        //     customClass: {
-        //         actions: "my-actions",
-        //         cancelButton: "order-1 right-gap",
-        //         confirmButton: "order-2",
-        //         denyButton: "order-3",
-        //     },
-        // }).then((result) => {
-        //     if (result.isConfirmed) {
-        //         axios
-        //             .put("/admin/cart/empty")
-        //             .then((res) => {
-        //                 setCartUpdated(!cartUpdated);
-        //                 setOrderDiscount(0);
-        //                 setProductUpdated(!productUpdated);
-        //                 setSearchQuery("");
-        //                 playSound(SuccessSound);
-        //                 toast.success(res?.data?.message);
-        //             })
-        //             .catch((err) => {
-        //                 playSound(WarningSound);
-        //                 toast.error(err.response.data.message);
-        //             });
-        //     } else if (result.isDenied) {
-        //         return;
-        //     }
-        // });
     }
     function orderCreate() {
         if (total <= 0) {
@@ -269,6 +315,8 @@ export default function Pos() {
         }
         if (!customerId) {
             toast.error("Please select customer");
+            // NEW: Focus back to barcode when customer not selected
+            setTimeout(focusBarcodeInput, 100);
             return;
         }
 
@@ -288,85 +336,41 @@ export default function Pos() {
                         setSearchQuery("");
                         playSound(SuccessSound);
                         toast.success(res?.data?.message);
+                        // NEW: Focus back to barcode after successful order
+                        setTimeout(focusBarcodeInput, 100);
                     })
                     .catch((err) => {
                         playSound(WarningSound);
                         toast.error(err.response.data.message);
+                        // NEW: Focus back to barcode even on error
+                        setTimeout(focusBarcodeInput, 100);
                     });
-                // setCartUpdated(!cartUpdated);
-                // setProductUpdated(!productUpdated);
-                // toast.success(res?.data?.message);
-                // // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
-                // window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
             })
             .catch((err) => {
                 toast.error(err.response.data.message);
+                // NEW: Focus back to barcode even on error
+                setTimeout(focusBarcodeInput, 100);
             });
-
-        // Swal.fire({
-        //     title: `Are you sure you want to complete this order? <br>Due: ${due}`,
-        //     showDenyButton: true,
-        //     confirmButtonText: "Yes",
-        //     denyButtonText: "No",
-        //     customClass: {
-        //         actions: "my-actions",
-        //         cancelButton: "order-1 right-gap",
-        //         confirmButton: "order-2",
-        //         denyButton: "order-3",
-        //     },
-        // }).then((result) => {
-        //     if (result.isConfirmed) {
-        //         axios
-        //             .put("/admin/order/create", {
-        //                 customer_id: customerId,
-        //                 order_discount: parseFloat(orderDiscount) || 0,
-        //                 paid: parseFloat(paid) || 0,
-        //             })
-        //             .then((res) => {
-        //                 axios
-        //                     .put("/admin/cart/empty")
-        //                     .then((res) => {
-        //                         setCartUpdated(!cartUpdated);
-        //                         playSound(SuccessSound);
-        //                         toast.success(res?.data?.message);
-        //                     })
-        //                     .catch((err) => {
-        //                         playSound(WarningSound);
-        //                         toast.error(err.response.data.message);
-        //                     });
-        //                 // setCartUpdated(!cartUpdated);
-        //                 // setProductUpdated(!productUpdated);
-        //                 // toast.success(res?.data?.message);
-        //                 // // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
-        //                 // window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
-        //             })
-        //             .catch((err) => {
-        //                 toast.error(err.response.data.message);
-        //             });
-        //     } else if (result.isDenied) {
-        //         return;
-        //     }
-        // });
     }
     return (
         <>
             <div className="card">
                 <div class="mt-n5 mb-3 d-flex justify-content-end">
-                    {/* <a
-                        href="/admin"
-                        className="btn bg-gradient-primary mr-2"
-                    >
-                        Dashboard
-                    </a> */}
                     <a
                         href="/admin/orders"
                         className="btn bg-gradient-primary"
                     >
                         Sale List
                     </a>
+                    {/* NEW: Barcode focus status indicator */}
+                    <div className="ml-2 d-flex align-items-center">
+                        <i 
+                            className={`fas fa-barcode ${isBarcodeFocused ? 'text-success' : 'text-danger'}`}
+                            style={{ fontSize: '20px' }}
+                            title={isBarcodeFocused ? "Barcode scanner is active" : "Barcode scanner is not focused"}
+                        ></i>
+                    </div>
                 </div>
-
-
 
                 <div className="mb-3">
                     <div className="card bg-primary text-white">
@@ -389,19 +393,6 @@ export default function Pos() {
                                         setCustomerId={setCustomerId}
                                     />
                                 </div>
-                                {/* <div className="col-6">
-                                <form className="form">
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        placeholder="Enter barcode"
-                                        value={searchQuery}
-                                        onChange={(e) =>
-                                            setSearchQuery(e.target.value)
-                                        }
-                                    />
-                                </form>
-                            </div> */}
                             </div>
                             <Cart
                                 carts={carts}
@@ -417,10 +408,9 @@ export default function Pos() {
                                         </div>
                                     </div>
                                     <div className="row text-bold mb-1">
-                                        <div className="col">Discount:</div>
+                                        <div className="col">Total discount:</div>
                                         <div className="col text-right mr-2">
                                             <input
-                                                // hidden
                                                 type="number"
                                                 className="form-control form-control-sm"
                                                 placeholder="Enter discount"
@@ -440,129 +430,18 @@ export default function Pos() {
                                                     setOrderDiscount(value);
                                                 }}
                                                 onClick={() => {
-                                                    Swal.fire({
-                                                        title: 'Enter Discount',
-                                                        input: 'number',
-                                                        inputAttributes: {
-                                                            'aria-label': 'Enter your discount'
-                                                        },
-                                                        inputPlaceholder: 'Enter discount',
-                                                        showCancelButton: true,
-                                                        confirmButtonText: 'Yes',
-                                                        cancelButtonText: 'No',
-                                                        inputValidator: (value) => {
-                                                            if (!value) {
-                                                                return 'You need to write something!';
-                                                            }
-                                                            const parsedValue = parseFloat(value);
-                                                            if (parsedValue < 0 || parsedValue > total) {
-                                                                return 'Invalid discount value!';
-                                                            }
-                                                            setOrderDiscount(parsedValue);
-                                                        }
-                                                    });
+                                                    // NEW: Use the new dialog function
+                                                    openDialog('discount');
                                                 }}
                                             />
                                         </div>
-
-
-                                        {/* <div className="col-6">
-                                            <form className="form" onClick={() => {
-                                                Swal.fire({
-                                                    title: 'Enter Discount',
-                                                    input: 'number',
-                                                    inputAttributes: {
-                                                        'aria-label': 'Enter your discount'
-                                                    },
-                                                    inputPlaceholder: 'Enter discount',
-                                                    showCancelButton: true,
-                                                    confirmButtonText: 'Yes',
-                                                    cancelButtonText: 'No',
-                                                    inputValidator: (value) => {
-                                                        if (!value) {
-                                                            return 'You need to write something!';
-                                                        }
-                                                        const parsedValue = parseFloat(value);
-                                                        if (parsedValue < 0 || parsedValue > total) {
-                                                            return 'Invalid discount value!';
-                                                        }
-                                                        setOrderDiscount(parsedValue);
-                                                    }
-                                                });
-                                            }}>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Click to enter discount"
-                                                    value={orderDiscount}
-                                                    readOnly
-                                                />
-                                            </form>
-                                        </div> */}
                                     </div>
-                                    {/* <div className="row text-bold mb-1">
-                                        <div className="col">
-                                            Apply Fractional Discount:
-                                        </div>
-                                        <div className="col text-right mr-2">
-                                            <input
-                                                type="checkbox"
-                                                className="form-control-sm"
-                                                disabled={total <= 0}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        const fractionalPart =
-                                                            total % 1;
-                                                        setOrderDiscount(
-                                                            fractionalPart?.toFixed(
-                                                                2
-                                                            )
-                                                        );
-                                                    } else {
-                                                        setOrderDiscount(0);
-                                                        setProductUpdated(!productUpdated);
-                                                        setSearchQuery("");
-                                                    }
-                                                }}
-                                            />
-                                        </div>
-                                    </div> */}
                                     <div className="row text-bold mb-1">
                                         <div className="col">Total:</div>
                                         <div className="col text-right mr-2">
                                             {updateTotal}
                                         </div>
                                     </div>
-                                    {/* <div className="row text-bold mb-1">
-                                        <div className="col">Paid:</div>
-                                        <div className="col text-right mr-2">
-                                            <input
-                                                type="number"
-                                                className="form-control form-control-sm"
-                                                placeholder="Enter paid"
-                                                min={0}
-                                                disabled={total <= 0}
-                                                value={paid}
-                                                onChange={(e) => {
-                                                    const value =
-                                                        e.target.value;
-                                                    if (
-                                                        parseFloat(value) < 0 ||
-                                                        parseFloat(value) >
-                                                        updateTotal
-                                                    ) {
-                                                        return;
-                                                    }
-                                                    setPaid(value);
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="row text-bold">
-                                        <div className="col">Due:</div>
-                                        <div className="col text-right mr-2">
-                                            {due}
-                                        </div>
-                                    </div> */}
                                 </div>
                             </div>
                             <div className="row">
@@ -590,12 +469,14 @@ export default function Pos() {
                             </div>
                         </div>
                         <div className="col-md-6 col-lg-7">
-                            {/* Ensure a global CapsLock listener is added once; when CapsLock is active focus the barcode input */}
                             {(() => {
                                 if (!window.__barcodeAlwaysFocusAdded) {
                                     window.__barcodeAlwaysFocusAdded = true;
                                     window.__barcodeFocusHandler = function (e) {
                                         try {
+                                            // NEW: Don't refocus if dialog is open (using ref for latest value)
+                                            if (isDialogOpenRef.current) return;
+                                            
                                             const el = document.getElementById("barcodeInput");
                                             if (!el) return;
                                             const target = e.target;
@@ -603,12 +484,20 @@ export default function Pos() {
                                             if (target && (target.id === "barcodeInput" || target.closest && target.closest('#barcodeInput'))) {
                                                 return;
                                             }
+                                            // Don't refocus if user is interacting with form elements
+                                            if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) {
+                                                return;
+                                            }
                                             // Always refocus the barcode input (use timeout so original event completes)
                                             setTimeout(() => {
-                                                el.focus();
-                                                if (el.setSelectionRange) {
-                                                    const len = el.value.length;
-                                                    el.setSelectionRange(len, len);
+                                                // Double check dialog is still closed using ref
+                                                if (!isDialogOpenRef.current) {
+                                                    el.focus();
+                                                    setIsBarcodeFocused(true);
+                                                    if (el.setSelectionRange) {
+                                                        const len = el.value.length;
+                                                        el.setSelectionRange(len, len);
+                                                    }
                                                 }
                                             }, 10);
                                         } catch (err) {
@@ -637,7 +526,11 @@ export default function Pos() {
                                         autoFocus
                                         onChange={(e) =>
                                             setSearchBarcode(e.target.value)
-                                        } />
+                                        }
+                                        // NEW: Add focus and blur handlers
+                                        onFocus={handleBarcodeFocus}
+                                        onBlur={handleBarcodeBlur}
+                                    />
                                 </div>
                                 <div className="mb-2 col-md-6">
                                     <input
@@ -649,20 +542,8 @@ export default function Pos() {
                                             setSearchQuery(e.target.value)
                                         }
                                         onClick={() => {
-                                            Swal.fire({
-                                                title: 'Enter Product Name',
-                                                input: 'text',
-                                                inputAttributes: {
-                                                    'aria-label': 'Enter your Product Name'
-                                                },
-                                                confirmButtonText: 'Search',
-                                                inputValidator: (value) => {
-                                                    if (!value) {
-                                                        return 'You need to write something!';
-                                                    }
-                                                    setSearchQuery(value);
-                                                }
-                                            });
+                                            // NEW: Use the new dialog function
+                                            openDialog('productSearch');
                                         }}
                                     />
                                 </div>

@@ -96,7 +96,8 @@ class OrderController extends Controller
         foreach ($carts as $cart) {
             $mainTotal = $cart->product->price * $cart->quantity;
             $totalAfterDiscount = $cart->product->discounted_price * $cart->quantity;
-            $discount = $mainTotal - $totalAfterDiscount;
+            $discount = $cart->discount;
+            // $discount = $mainTotal - $totalAfterDiscount;
             $totalAmountOrder += $totalAfterDiscount;
             $order->products()->create([
                 'quantity' => $cart->quantity,

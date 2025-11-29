@@ -7,6 +7,9 @@ import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
 export default function Cart({ carts, setCartUpdated, cartUpdated }) {
+    // NEW: State to track if discount dialog is open
+    const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
+
     function increment(id) {
         axios
             .put("/admin/cart/increment", {
@@ -22,6 +25,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                 toast.error(err.response.data.message);
             });
     }
+    
     function decrement(id) {
         axios
             .put("/admin/cart/decrement", {
@@ -37,53 +41,102 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                 toast.error(err.response.data.message);
             });
     }
+    
     function destroy(id) {
-
         axios
-                    .put("/admin/cart/delete", {
-                        id: id,
-                    })
-                    .then((res) => {
-                        console.log(res);
-                        setCartUpdated(!cartUpdated);
-                        playSound(SuccessSound);
-                        toast.success(res?.data?.message);
-                    })
-                    .catch((err) => {
-                        toast.error(err.response.data.message);
-                    });
-
-        // Swal.fire({
-        //     title: "Are you sure you want to delete this item?",
-        //     showDenyButton: true,
-        //     confirmButtonText: "Yes",
-        //     denyButtonText: "No",
-        //     customClass: {
-        //         actions: "my-actions",
-        //         cancelButton: "order-1 right-gap",
-        //         confirmButton: "order-2",
-        //         denyButton: "order-3",
-        //     },
-        // }).then((result) => {
-        //     if (result.isConfirmed) {
-        //         axios
-        //             .put("/admin/cart/delete", {
-        //                 id: id,
-        //             })
-        //             .then((res) => {
-        //                 console.log(res);
-        //                 setCartUpdated(!cartUpdated);
-        //                 playSound(SuccessSound);
-        //                 toast.success(res?.data?.message);
-        //             })
-        //             .catch((err) => {
-        //                 toast.error(err.response.data.message);
-        //             });
-        //     } else if (result.isDenied) {
-        //         return;
-        //     }
-        // });
+            .put("/admin/cart/delete", {
+                id: id,
+            })
+            .then((res) => {
+                console.log(res);
+                setCartUpdated(!cartUpdated);
+                playSound(SuccessSound);
+                toast.success(res?.data?.message);
+            })
+            .catch((err) => {
+                toast.error(err.response.data.message);
+            });
     }
+
+    // NEW: Updated discount function with dialog
+    function openDiscountDialog(item) {
+        setIsDiscountDialogOpen(true);
+        
+        Swal.fire({
+            title: `Enter Discount for ${item.product.name}`,
+            input: 'number',
+            inputAttributes: {
+                'aria-label': `Enter discount for ${item.product.name}`,
+                'autofocus': 'true',
+                'min': '0',
+                'max': (item.product.discounted_price * item.quantity).toFixed(2),
+                'step': '0.01'
+            },
+            inputPlaceholder: `Enter discount (max: ${(item.product.discounted_price * item.quantity).toFixed(2)})`,
+            inputValue: item.discount || 0,
+            showCancelButton: true,
+            confirmButtonText: 'Apply Discount',
+            cancelButtonText: 'Cancel',
+            allowEnterKey: true,
+            inputValidator: (value) => {
+                if (value === '') {
+                    return 'You need to enter a discount value!';
+                }
+                const discountValue = parseFloat(value);
+                const maxDiscount = item.product.discounted_price * item.quantity;
+                
+                if (discountValue < 0) {
+                    return 'Discount cannot be negative!';
+                }
+                if (discountValue > maxDiscount) {
+                    return `Discount cannot exceed ${maxDiscount.toFixed(2)}!`;
+                }
+            }
+        }).then((result) => {
+            setIsDiscountDialogOpen(false);
+            
+            if (result.isConfirmed) {
+                const discountValue = parseFloat(result.value);
+                applyDiscount(item.id, discountValue);
+            }
+            
+            // NEW: Refocus barcode input after discount dialog closes
+            setTimeout(() => {
+                const barcodeInput = document.getElementById("barcodeInput");
+                if (barcodeInput) {
+                    barcodeInput.focus();
+                }
+            }, 300);
+        });
+
+        // NEW: Manually focus the input after a delay to ensure Swal is rendered
+        setTimeout(() => {
+            const swalInput = document.querySelector('.swal2-input');
+            if (swalInput) {
+                swalInput.focus();
+                swalInput.select();
+            }
+        }, 300);
+    }
+
+    // NEW: Separate function to apply the discount
+    function applyDiscount(id, discountValue) {
+        axios
+            .put("/admin/cart/discount", {
+                id: id,
+                discount: discountValue,
+            })
+            .then((res) => {
+                setCartUpdated(!cartUpdated);
+                playSound(SuccessSound);
+                toast.success(res?.data?.message);
+            })
+            .catch((err) => {
+                playSound(WarningSound);
+                toast.error(err.response.data.message);
+            });
+    }
+
     return (
         <>
             <div className="user-cart">
@@ -97,6 +150,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                         <th>Quantity</th>
                                         <th></th>
                                         <th>Price</th>
+                                        <th>Discount</th>
                                         <th>Total</th>
                                     </tr>
                                 </thead>
@@ -153,8 +207,20 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                                     ""
                                                 )}
                                             </td>
+                                            <td>
+                                                {/* NEW: Updated discount input with click handler */}
+                                                <input
+                                                    type="number"
+                                                    className="form-control form-control-sm qty ml-1 mr-1"
+                                                    value={item.discount || 0}
+                                                    readOnly
+                                                    style={{ cursor: "pointer" }}
+                                                    onClick={() => openDiscountDialog(item)}
+                                                    title="Click to edit discount"
+                                                />
+                                            </td>
                                             <td className="text-right">
-                                                {item?.row_total}
+                                                { (item?.row_total || 0) - (item?.discount || 0) }
                                             </td>
                                         </tr>
                                     ))}
