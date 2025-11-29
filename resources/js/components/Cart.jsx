@@ -25,7 +25,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                 toast.error(err.response.data.message);
             });
     }
-    
+
     function decrement(id) {
         axios
             .put("/admin/cart/decrement", {
@@ -41,7 +41,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                 toast.error(err.response.data.message);
             });
     }
-    
+
     function destroy(id) {
         axios
             .put("/admin/cart/delete", {
@@ -61,7 +61,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
     // NEW: Updated discount function with dialog
     function openDiscountDialog(item) {
         setIsDiscountDialogOpen(true);
-        
+
         Swal.fire({
             title: `Enter Discount for ${item.product.name}`,
             input: 'number',
@@ -84,7 +84,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                 }
                 const discountValue = parseFloat(value);
                 const maxDiscount = item.product.discounted_price * item.quantity;
-                
+
                 if (discountValue < 0) {
                     return 'Discount cannot be negative!';
                 }
@@ -94,12 +94,12 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
             }
         }).then((result) => {
             setIsDiscountDialogOpen(false);
-            
+
             if (result.isConfirmed) {
                 const discountValue = parseFloat(result.value);
                 applyDiscount(item.id, discountValue);
             }
-            
+
             // NEW: Refocus barcode input after discount dialog closes
             setTimeout(() => {
                 const barcodeInput = document.getElementById("barcodeInput");
@@ -195,8 +195,8 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                             <td className="text-right">
                                                 {item?.product?.discounted_price}
                                                 {item?.product?.price >
-                                                item?.product
-                                                    ?.discounted_price ? (
+                                                    item?.product
+                                                        ?.discounted_price ? (
                                                     <>
                                                         <br />
                                                         <del>
@@ -220,7 +220,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                                 />
                                             </td>
                                             <td className="text-right">
-                                                { (item?.row_total || 0) - (item?.discount || 0) }
+                                                {(item?.row_total || 0) - (item?.discount || 0)}
                                             </td>
                                         </tr>
                                     ))}

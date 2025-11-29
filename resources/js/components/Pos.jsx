@@ -34,7 +34,7 @@ export default function Pos() {
     const isDialogOpenRef = useRef(false);
     const fullDomainWithPort = `${protocol}//${hostname}${port ? `:${port}` : ""
         }`;
-    
+
     // NEW: Update ref when state changes
     useEffect(() => {
         isDialogOpenRef.current = isDialogOpen;
@@ -170,7 +170,7 @@ export default function Pos() {
     const focusBarcodeInput = () => {
         // Don't focus if dialog is open
         if (isDialogOpenRef.current) return;
-        
+
         const barcodeEl = document.getElementById("barcodeInput");
         if (barcodeEl) {
             barcodeEl.focus();
@@ -192,7 +192,7 @@ export default function Pos() {
     const openDialog = (dialogType) => {
         setIsDialogOpen(true);
         setIsBarcodeFocused(false);
-        
+
         if (dialogType === 'discount') {
             Swal.fire({
                 title: 'Enter Discount',
@@ -364,7 +364,7 @@ export default function Pos() {
                     </a>
                     {/* NEW: Barcode focus status indicator */}
                     <div className="ml-2 d-flex align-items-center">
-                        <i 
+                        <i
                             className={`fas fa-barcode ${isBarcodeFocused ? 'text-success' : 'text-danger'}`}
                             style={{ fontSize: '20px' }}
                             title={isBarcodeFocused ? "Barcode scanner is active" : "Barcode scanner is not focused"}
@@ -476,7 +476,7 @@ export default function Pos() {
                                         try {
                                             // NEW: Don't refocus if dialog is open (using ref for latest value)
                                             if (isDialogOpenRef.current) return;
-                                            
+
                                             const el = document.getElementById("barcodeInput");
                                             if (!el) return;
                                             const target = e.target;
