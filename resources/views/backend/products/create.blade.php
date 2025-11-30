@@ -18,12 +18,12 @@
             <input type="text" class="form-control" placeholder="Enter title" name="name"
               value="{{ old('name') }}" required>
           </div>
-          <div class="mb-3 col-md-6">
+          <div class="mb-3 col-md-6" hidden>
             <label for="sku" class="form-label">
               Sku
               <span class="text-danger">*</span>
             </label>
-            <input type="text" class="form-control" placeholder="Enter sku" name="sku" 
+            <input type="text" class="form-control" placeholder="Enter sku" name="sku" hidden
               value="{{ old('sku') }}" >
           </div>
           <div class="mb-3 col-md-6">

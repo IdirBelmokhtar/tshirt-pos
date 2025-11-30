@@ -148,10 +148,10 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                     <tr className="text-center">
                                         <th>Name</th>
                                         <th>Quantity</th>
-                                        <th></th>
                                         <th>Price</th>
                                         <th>Discount</th>
                                         <th>Total</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -180,16 +180,6 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                                     }
                                                 >
                                                     <i className="fas fa-plus "></i>
-                                                </button>
-                                            </td>
-                                            <td>
-                                                <button
-                                                    className="btn btn-danger btn-sm mr-3"
-                                                    onClick={() =>
-                                                        destroy(item.id)
-                                                    }
-                                                >
-                                                    <i className="fas fa-trash "></i>
                                                 </button>
                                             </td>
                                             <td className="text-right">
@@ -221,6 +211,16 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                             </td>
                                             <td className="text-right">
                                                 {(item?.row_total || 0) - (item?.discount || 0)}
+                                            </td>
+                                            <td>
+                                                <button
+                                                    className="btn btn-danger btn-sm mr-3"
+                                                    onClick={() =>
+                                                        destroy(item.id)
+                                                    }
+                                                >
+                                                    <i className="fas fa-trash "></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
