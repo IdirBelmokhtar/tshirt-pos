@@ -63,33 +63,33 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
         setIsDiscountDialogOpen(true);
 
         Swal.fire({
-            title: `Enter Discount for ${item.product.name}`,
+            title: `Saisir la remise pour ${item.product.name}`,
             input: 'number',
             inputAttributes: {
-                'aria-label': `Enter discount for ${item.product.name}`,
+                'aria-label': `Saisir la remise pour ${item.product.name}`,
                 'autofocus': 'true',
                 'min': '0',
                 'max': (item.product.discounted_price * item.quantity).toFixed(2),
                 'step': '0.01'
             },
-            inputPlaceholder: `Enter discount (max: ${(item.product.discounted_price * item.quantity).toFixed(2)})`,
+            inputPlaceholder: `Saisir la remise (max : ${(item.product.discounted_price * item.quantity).toFixed(2)})`,
             inputValue: item.discount || 0,
             showCancelButton: true,
-            confirmButtonText: 'Apply Discount',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: 'Appliquer la remise',
+            cancelButtonText: 'Annuler',
             allowEnterKey: true,
             inputValidator: (value) => {
                 if (value === '') {
-                    return 'You need to enter a discount value!';
+                    return 'Vous devez entrer une valeur de remise !';
                 }
                 const discountValue = parseFloat(value);
                 const maxDiscount = item.product.discounted_price * item.quantity;
 
                 if (discountValue < 0) {
-                    return 'Discount cannot be negative!';
+                    return 'La remise ne peut pas être négative !';
                 }
                 if (discountValue > maxDiscount) {
-                    return `Discount cannot exceed ${maxDiscount.toFixed(2)}!`;
+                    return `La remise ne peut pas dépasser ${maxDiscount.toFixed(2)} !`;
                 }
             }
         }).then((result) => {
@@ -100,7 +100,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                 applyDiscount(item.id, discountValue);
             }
 
-            // NEW: Refocus barcode input after discount dialog closes
+            // Refocus barcode input after discount dialog closes
             setTimeout(() => {
                 const barcodeInput = document.getElementById("barcodeInput");
                 if (barcodeInput) {
@@ -109,7 +109,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
             }, 300);
         });
 
-        // NEW: Manually focus the input after a delay to ensure Swal is rendered
+        // Manually focus the input after a delay to ensure Swal is rendered
         setTimeout(() => {
             const swalInput = document.querySelector('.swal2-input');
             if (swalInput) {
@@ -146,12 +146,12 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                             <table className="table table-striped">
                                 <thead>
                                     <tr className="text-center">
-                                        <th>Name</th>
-                                        <th>Quantity</th>
-                                        <th>Price</th>
-                                        <th>Discount</th>
+                                        <th>Nom</th>
+                                        <th>Quantité</th>
+                                        <th>Prix</th>
+                                        <th>Remise</th>
                                         <th>Total</th>
-                                        <th>Action</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -164,6 +164,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                                     onClick={() =>
                                                         decrement(item.id)
                                                     }
+                                                    title="Diminuer la quantité"
                                                 >
                                                     <i className="fas fa-minus"></i>
                                                 </button>
@@ -178,6 +179,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                                     onClick={() =>
                                                         increment(item.id)
                                                     }
+                                                    title="Augmenter la quantité"
                                                 >
                                                     <i className="fas fa-plus "></i>
                                                 </button>
@@ -198,7 +200,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                                 )}
                                             </td>
                                             <td>
-                                                {/* NEW: Updated discount input with click handler */}
+                                                {/* Discount input with French tooltip */}
                                                 <input
                                                     type="number"
                                                     className="form-control form-control-sm qty ml-1 mr-1"
@@ -206,11 +208,11 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                                     readOnly
                                                     style={{ cursor: "pointer" }}
                                                     onClick={() => openDiscountDialog(item)}
-                                                    title="Click to edit discount"
+                                                    title="Cliquez pour modifier la remise"
                                                 />
                                             </td>
                                             <td className="text-right">
-                                                {(item?.row_total || 0) - (item?.discount || 0)}
+                                                {(item?.row_total || 0) - (item?.discount * item?.quantity || 0)}
                                             </td>
                                             <td>
                                                 <button
@@ -218,6 +220,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                                     onClick={() =>
                                                         destroy(item.id)
                                                     }
+                                                    title="Supprimer"
                                                 >
                                                     <i className="fas fa-trash "></i>
                                                 </button>

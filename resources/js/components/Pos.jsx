@@ -68,10 +68,10 @@ export default function Pos() {
 
                         getProducts("", currentPage, "");
                     }
-                    document.querySelector('input[placeholder="Enter discount"]').click();
+                    document.querySelector('input[placeholder="Saisir la remise"]').click();
                 }
                 if (barcode === "+") { // + → Ajouter autre article
-
+                    // openAddProductDialog();
                 }
 
             } catch (error) {
@@ -195,27 +195,27 @@ export default function Pos() {
 
         if (dialogType === 'discount') {
             Swal.fire({
-                title: 'Enter Discount',
+                title: 'Saisir la remise',
                 input: 'number',
                 inputAttributes: {
-                    'aria-label': 'Enter your discount',
+                    'aria-label': 'Saisir la remise',
                     'autofocus': 'true'
                 },
-                inputPlaceholder: 'Enter discount',
+                inputPlaceholder: 'Saisir la remise',
                 showCancelButton: true,
-                confirmButtonText: 'Apply',
-                cancelButtonText: 'Cancel',
+                confirmButtonText: 'Appliquer',
+                cancelButtonText: 'Annuler',
                 allowEnterKey: true,
                 preConfirm: () => {
                     // This will be called when confirm button is clicked
                 },
                 inputValidator: (value) => {
                     if (!value) {
-                        return 'You need to write something!';
+                        return 'Vous devez écrire quelque chose !';
                     }
                     const parsedValue = parseFloat(value);
                     if (parsedValue < 0 || parsedValue > total) {
-                        return 'Invalid discount value!';
+                        return 'Valeur de remise invalide !';
                     }
                     setOrderDiscount(parsedValue);
                 }
@@ -237,19 +237,19 @@ export default function Pos() {
 
         } else if (dialogType === 'productSearch') {
             Swal.fire({
-                title: 'Enter Product Name',
+                title: 'Saisir le nom du produit',
                 input: 'text',
                 inputAttributes: {
-                    'aria-label': 'Enter your Product Name',
+                    'aria-label': 'Saisir le nom du produit',
                     'autofocus': 'true'
                 },
-                confirmButtonText: 'Search',
+                confirmButtonText: 'Rechercher',
                 showCancelButton: true,
-                cancelButtonText: 'Cancel',
+                cancelButtonText: 'Annuler',
                 allowEnterKey: true,
                 inputValidator: (value) => {
                     if (!value) {
-                        return 'You need to write something!';
+                        return 'Vous devez écrire quelque chose !';
                     }
                     setSearchQuery(value);
                 }
@@ -267,6 +267,112 @@ export default function Pos() {
                     swalInput.focus();
                 }
             }, 300);
+        }
+    };
+
+    // NEW: Function to open Add Product dialog
+    const openAddProductDialog = () => {
+        setIsDialogOpen(true);
+        setIsBarcodeFocused(false);
+
+        Swal.fire({
+            title: 'Ajouter un nouveau produit',
+            html: `
+              <div style="text-align:left">
+                
+                <div class="form-row" style="display:flex;gap:10px;">
+                <div class="form-group">
+                  <label for="swal-product-name" style="font-weight:600;margin-bottom:6px;">Nom du produit</label>
+                  <input type="text" id="swal-product-name" class="form-control" placeholder="Nom du produit" style="font-size:14px;height:40px;">
+                </div>
+                  <div style="flex:1">
+                    <label for="swal-product-price" style="font-weight:600;margin-bottom:6px;">Prix*</label>
+                    <input type="number" id="swal-product-price" class="form-control" placeholder="0.00 DA" min="0" step="0.01" style="font-size:14px;height:40px;">
+                  </div>
+                </div>
+                <div style="flex:1">
+                    <label for="swal-product-purchase-price" style="font-weight:600;margin-bottom:6px;">Prix d'achat</label>
+                    <input type="number" id="swal-product-purchase-price" class="form-control" placeholder="0.00 DA" min="0" step="0.01" style="font-size:14px;height:40px;">
+                  </div>
+              </div>
+            `,
+            showCancelButton: true,
+            focusConfirm: false,
+            confirmButtonText: 'Ajouter le produit',
+            cancelButtonText: 'Annuler',
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#d33',
+            allowOutsideClick: false,
+            preConfirm: () => {
+                const nameEl = document.getElementById('swal-product-name');
+                const priceEl = document.getElementById('swal-product-price');
+                const purchasePriceEl = document.getElementById('swal-product-purchase-price');
+
+                if (!nameEl) {
+                    Swal.showValidationMessage('Le nom du produit est requis');
+                    return false;
+                }
+
+                const name = (nameEl.value || "").trim();
+                const priceRaw = priceEl ? priceEl.value : '';
+                const purchasePriceRaw = purchasePriceEl ? purchasePriceEl.value : '';
+
+                const price = parseFloat(priceRaw);
+                const purchase_price = purchasePriceRaw === "" ? 0 : parseFloat(purchasePriceRaw);
+
+                if (priceRaw === "" || isNaN(price) || price < 0) {
+                    Swal.showValidationMessage('Veuillez saisir un prix valide');
+                    return false;
+                }
+
+                return { name, price, purchase_price };
+            }
+        }).then((result) => {
+            setIsDialogOpen(false);
+
+            if (result.isConfirmed && result.value) {
+                createNewProduct(result.value);
+            }
+
+            // Refocus barcode input after dialog closes
+            setTimeout(focusBarcodeInput, 500);
+        });
+
+        // Manually focus the first input after a delay to ensure Swal is rendered
+        setTimeout(() => {
+            const nameInput = document.getElementById('swal-product-name');
+            if (nameInput) {
+                nameInput.focus();
+            }
+        }, 300);
+    };
+
+    const createNewProduct = async (productData) => {
+        try {
+            const formData = new FormData();
+            formData.append('name', productData.name);
+            formData.append('price', productData.price);
+            formData.append('purchase_price', productData.purchase_price);
+
+            axios
+                .post('/admin/product/other_article', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                })
+                .then((response) => {
+                    playSound(SuccessSound);
+                    setProductUpdated(!productUpdated);
+                    addProductToCart(response.data.product.id);
+                    toast.success('Produit créé avec succès !');
+                })
+                .catch((error) => {
+                    playSound(WarningSound);
+                    console.error('Error creating product:', error);
+                    toast.error(error.response?.data?.message || 'Erreur lors de la création du produit');
+                });
+        } catch (error) {
+            playSound(WarningSound);
+            console.error('Unexpected error preparing product data:', error);
+            toast.error('Erreur inattendue lors de la création du produit');
         }
     };
 
@@ -314,7 +420,7 @@ export default function Pos() {
             return;
         }
         if (!customerId) {
-            toast.error("Please select customer");
+            toast.error("Veuillez sélectionner un client");
             // NEW: Focus back to barcode when customer not selected
             setTimeout(focusBarcodeInput, 100);
             return;
@@ -357,17 +463,24 @@ export default function Pos() {
             <div className="card">
                 <div class="mt-n5 mb-3 d-flex justify-content-end">
                     <a
+                        href="/admin/products"
+                        className="btn bg-gradient-primary mr-2"
+                    >
+                        Liste des produits
+                    </a>
+
+                    <a
                         href="/admin/orders"
                         className="btn bg-gradient-primary"
                     >
-                        Sale List
+                        Liste des ventes
                     </a>
                     {/* NEW: Barcode focus status indicator */}
                     <div className="ml-2 d-flex align-items-center">
                         <i
                             className={`fas fa-barcode ${isBarcodeFocused ? 'text-success' : 'text-danger'}`}
                             style={{ fontSize: '20px' }}
-                            title={isBarcodeFocused ? "Barcode scanner is active" : "Barcode scanner is not focused"}
+                            title={isBarcodeFocused ? "Scanner de codes-barres actif" : "Scanner de codes-barres non focalisé"}
                         ></i>
                     </div>
                 </div>
@@ -402,18 +515,18 @@ export default function Pos() {
                             <div className="card">
                                 <div className="card-body">
                                     <div className="row text-bold mb-1">
-                                        <div className="col">Sub Total:</div>
+                                        <div className="col">Sous-total :</div>
                                         <div className="col text-right mr-2">
                                             {total}
                                         </div>
                                     </div>
                                     <div className="row text-bold mb-1">
-                                        <div className="col">Total discount:</div>
+                                        <div className="col">Remise totale :</div>
                                         <div className="col text-right mr-2">
                                             <input
                                                 type="number"
                                                 className="form-control form-control-sm"
-                                                placeholder="Enter discount"
+                                                placeholder="Saisir la remise"
                                                 min={0}
                                                 disabled={total <= 0}
                                                 value={orderDiscount}
@@ -437,7 +550,7 @@ export default function Pos() {
                                         </div>
                                     </div>
                                     <div className="row text-bold mb-1">
-                                        <div className="col">Total:</div>
+                                        <div className="col">Total :</div>
                                         <div className="col text-right mr-2">
                                             {updateTotal}
                                         </div>
@@ -451,7 +564,7 @@ export default function Pos() {
                                         type="button"
                                         className="btn bg-gradient-danger btn-block text-white text-bold"
                                     >
-                                        Clear Cart
+                                        Vider le panier
                                     </button>
                                 </div>
                                 <div className="col">
@@ -463,7 +576,7 @@ export default function Pos() {
                                         type="button"
                                         className="btn bg-gradient-success btn-block text-white text-bold"
                                     >
-                                        Checkout
+                                        Encaisser
                                     </button>
                                 </div>
                             </div>
@@ -521,7 +634,7 @@ export default function Pos() {
                                         id="barcodeInput"
                                         type="text"
                                         className="form-control"
-                                        placeholder="Enter Product Barcode"
+                                        placeholder="Saisir le code-barres"
                                         value={searchBarcode}
                                         autoFocus
                                         onChange={(e) =>
@@ -536,7 +649,7 @@ export default function Pos() {
                                     <input
                                         type="text"
                                         className="form-control"
-                                        placeholder="Enter Product Name"
+                                        placeholder="Saisir le nom du produit"
                                         value={searchQuery}
                                         onChange={(e) =>
                                             setSearchQuery(e.target.value)
@@ -547,6 +660,17 @@ export default function Pos() {
                                         }}
                                     />
                                 </div>
+
+                                {/* <div className="mb-2 col-md-2">
+                                    <button
+                                        type="button"
+                                        className="btn bg-gradient-info btn-block text-white"
+                                        onClick={openAddProductDialog}
+                                        title="Add new product"
+                                    >
+                                        <i className="fas fa-plus"></i> Other Article
+                                    </button>
+                                </div> */}
                             </div>
                             <div className="row products-card-container">
                                 {products.length > 0 &&
@@ -577,7 +701,7 @@ export default function Pos() {
                                                         ({product.quantity})
                                                     </p>
                                                     <p>
-                                                        Price:{" "}
+                                                        Prix :{" "}
                                                         {
                                                             product?.discounted_price
                                                         }
@@ -589,7 +713,7 @@ export default function Pos() {
                             </div>
                             {loading && (
                                 <div className="loading-more">
-                                    Loading more...
+                                    Chargement...
                                 </div>
                             )}
                         </div>

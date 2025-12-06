@@ -55,26 +55,31 @@ class ProductController extends Controller
                     : '<span class="badge bg-danger">Inactive</span>')
                 ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
-                    <a class="btn btn-primary btn-sm" href="' . route('backend.admin.products.barcode', $data->id) . '"><i class="fas fa-file-invoice"></i> Barcode</a>
+                    <a class="btn btn-secondary" href="' . route('backend.admin.products.barcode', $data->id) . '"><i class="fas fa-file-invoice"></i> Code-barre</a>
+                    <a class="btn btn-primary" href="' . route('backend.admin.products.edit', $data->id) . '"><i class="fas fa-edit"></i> Modifier</a> 
+                    <form class="btn btn-danger" action="' . route('backend.admin.products.destroy', $data->id) . '"method="POST" style="display:inline;">
+                   ' . csrf_field() . '
+                    ' . method_field("DELETE") . 
+                    
+                    '
+<button type="submit" class="dropdown-item" onclick="return confirm(\'Are you sure ?\')"><i class="fas fa-trash"></i> Supprimer</button>
+                  </form>
+                  ' . 
+                  /*
                     <button type="button" class="btn bg-gradient-primary btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
                     Action  
                     <span class="sr-only">Toggle Dropdown</span>
                     </button>
                     <div class="dropdown-menu" role="menu">
-                      <a class="dropdown-item" href="' . route('backend.admin.products.edit', $data->id) . '">
-                    <i class="fas fa-edit"></i> Edit
-                </a> <div class="dropdown-divider"></div>
-<form action="' . route('backend.admin.products.destroy', $data->id) . '"method="POST" style="display:inline;">
-                   ' . csrf_field() . '
-                    ' . method_field("DELETE") . '
-<button type="submit" class="dropdown-item" onclick="return confirm(\'Are you sure ?\')"><i class="fas fa-trash"></i> Delete</button>
-                  </form>
+                      <div class="dropdown-divider"></div>
+
 <div class="dropdown-divider"></div>
   <a class="dropdown-item" href="' . route('backend.admin.purchase.create', ['barcode' => $data->sku]) . '">
                 <i class="fas fa-cart-plus"></i> Purchase
             </a>
-                    </div>
-                  </div>';
+                    </div> 
+                    */
+                  '</div>';
                 })
                 ->rawColumns(['image', 'name', 'price', 'quantity', 'status', 'created_at', 'action'])
                 ->toJson();
@@ -121,6 +126,38 @@ class ProductController extends Controller
 
         abort_if(!auth()->user()->can('product_create'), 403);
         $validated = $request->validated();
+
+        if (empty($validated['sku'])) {
+            
+            
+            $maxSku = Product::where('sku', 'like', 'N%')
+                ->select(DB::raw('MAX(CAST(SUBSTRING(sku, 2) AS UNSIGNED)) as max_number'))
+                ->first();
+
+            $number = $maxSku->max_number ? $maxSku->max_number + 1 : 1;
+            $validated['sku'] = 'N' . str_pad($number, 5, '0', STR_PAD_LEFT);
+        }
+        
+        $product = Product::create($validated);
+        if ($request->hasFile("product_image")) {
+            $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
+            $product->save();
+        }
+
+        return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
+    }
+
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function other_article(CreateOtherArticleProductRequest $request)
+    {
+
+        abort_if(!auth()->user()->can('product_create'), 403);
+        $validated = $request->validated();
+
+        dd($validated);
 
         if (empty($validated['sku'])) {
             

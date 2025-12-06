@@ -19,10 +19,11 @@ class CartController extends Controller
                 ->get()
                 ->map(function ($item) {
                     // Calculate row total for each item
-                    $item->row_total = round(($item->quantity * $item->product->discounted_price),2);
+                    $item->row_total = round(($item->quantity * $item->product->discounted_price), 2);
+                    $item->discount_total = round(($item->discount * $item->quantity), 2);
                     return $item;
                 });
-            $discount = $cartItems->sum('discount');
+            $discount = $cartItems->sum('discount_total');
             $total = $cartItems->sum('row_total');
             return response()->json([
                 'carts' => $cartItems,
@@ -37,7 +38,7 @@ class CartController extends Controller
     public function getProducts(Request $request)
     {
 
-        $products = Product::query()->active()->stocked();
+        $products = Product::query()->active();
         // Search by name if provided
         $products->when($request->search, function ($query, $search) {
             $query->where('name', 'LIKE', "%{$search}%");
@@ -70,22 +71,25 @@ class CartController extends Controller
             return response()->json(['message' => 'Product is not available'], 400);
         }
 
-        if ($product->quantity <= 0) {
-            return response()->json(['message' => 'Insufficient stock available'], 400);
-        }
+        // if ($product->quantity <= 0) {
+        //     return response()->json(['message' => 'Insufficient stock available'], 400);
+        // }
 
         // Fetch the cart item for the current user and product
         $cartItem = PosCart::where('user_id', auth()->id())->where('product_id', $product_id)->first();
 
         if ($cartItem) {
+            $cartItem->quantity += 1;
+            $cartItem->save();
+            return response()->json(['message' => 'Quantity updated', 'quantity' => $cartItem->quantity], 200);
             // If the product is already in the cart, increment the quantity
-            if ($cartItem->quantity < $product->quantity) {
-                $cartItem->quantity += 1;
-                $cartItem->save();
-                return response()->json(['message' => 'Quantity updated', 'quantity' => $cartItem->quantity], 200);
-            } else {
-                return response()->json(['message' => 'Cannot add more, stock limit reached'], 400);
-            }
+            // if ($cartItem->quantity < $product->quantity) {
+            //     $cartItem->quantity += 1;
+            //     $cartItem->save();
+            //     return response()->json(['message' => 'Quantity updated', 'quantity' => $cartItem->quantity], 200);
+            // } else {
+            //     return response()->json(['message' => 'Cannot add more, stock limit reached'], 400);
+            // }
         } else {
             // If not in the cart, create a new cart item
             $cart = new PosCart();
@@ -104,12 +108,12 @@ class CartController extends Controller
         ]);
 
         $cart = PosCart::with('product')->findOrFail($request->id);
-        if ($cart->product->quantity <= 0) {
-            return response()->json(['message' => 'Insufficient stock available'], 400);
-        }
-        if ($cart->quantity == $cart->product->quantity) {
-            return response()->json(['message' => 'Cannot add more, stock limit reached'], 400);
-        }
+        // if ($cart->product->quantity <= 0) {
+        //     return response()->json(['message' => 'Insufficient stock available'], 400);
+        // }
+        // if ($cart->quantity == $cart->product->quantity) {
+        //     return response()->json(['message' => 'Cannot add more, stock limit reached'], 400);
+        // }
         $cart->quantity = $cart->quantity + 1;
         $cart->save();
         return response()->json(['message' => 'Cart Updated successfully'], 200);
@@ -148,7 +152,7 @@ class CartController extends Controller
             'discount' => 'required|numeric|min:0'
         ]);
         $cart = PosCart::findOrFail($request->id);
-        
+
         $cart->discount = $request->discount;
         $cart->save();
         return response()->json(['message' => 'Cart Updated successfully'], 200);

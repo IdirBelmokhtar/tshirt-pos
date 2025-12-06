@@ -1,6 +1,6 @@
 @extends('backend.master')
 
-@section('title', 'Update Product')
+@section('title', 'Mettre à jour le produit')
 
 @section('content')
 <div class="card">
@@ -13,27 +13,27 @@
         <div class="row">
           <div class="mb-3 col-md-6">
             <label for="title" class="form-label">
-              Name
+              Nom
               <span class="text-danger">*</span>
             </label>
-            <input type="text" class="form-control" placeholder="Enter title" name="name"
+            <input type="text" class="form-control" placeholder="Entrez le nom" name="name"
               value="{{ old('name', $product->name) }}" required>
           </div>
-          <div class="mb-3 col-md-6">
+          <div class="mb-3 col-md-6" hidden>
             <label for="sku" class="form-label">
-              Sku
+              SKU
               <span class="text-danger">*</span>
             </label>
-            <input type="text" class="form-control" placeholder="Enter sku" name="sku" readonly
-              value="{{ old('sku',$product->sku)}}" required>
+            <input type="text" class="form-control" placeholder="Entrez le SKU" name="sku" readonly
+              value="{{ old('sku',$product->sku)}}" >
           </div>
-          <div class="mb-3 col-md-6">
+          <div class="mb-3 col-md-6" hidden>
             <label for="brand_id" class="form-label">
-              Brand
+              Marque
               <span class="text-danger">*</span>
             </label>
-            <select class="form-control select2" style="width: 100%;" name="brand_id" required>
-              <option value="">Select Brand</option>
+            <select class="form-control select2" style="width: 100%;" name="brand_id" >
+              <option value="">{{ __('Sélectionner une marque') }}</option>
               @foreach ($brands as $item)
               <option value={{ $item->id }}
                 {{ $product->brand_id == $item->id ? 'selected' : '' }}>
@@ -44,11 +44,11 @@
           </div>
           <div class="mb-3 col-md-6">
             <label for="category_id" class="form-label">
-              Category
+              Catégorie
               <span class="text-danger">*</span>
             </label>
             <select class="form-control select2" style="width: 100%;" name="category_id" required>
-              <option value="">Select Category</option>
+              <option value="">{{ __('Sélectionner une catégorie') }}</option>
               @foreach ($categories as $item)
               <option value={{ $item->id }}
                 {{ $product->category_id == $item->id ? 'selected' : '' }}>
@@ -59,19 +59,19 @@
           </div>
           <div class="mb-3 col-md-6">
             <label for="price" class="form-label">
-              Price
+              Prix
               <span class="text-danger">*</span>
             </label>
             <input type="number" step="0.01" min="0" class="form-control"
-              placeholder="Enter price" name="price" value="{{ old('price',$product->price) }}" required>
+              placeholder="Entrez le prix" name="price" value="{{ old('price',$product->price) }}" required>
           </div>
-          <div class="mb-3 col-md-6">
+          <div class="mb-3 col-md-6" hidden>
             <label for="unit_id" class="form-label">
-              Unit
+              Unité
               <span class="text-danger">*</span>
             </label>
-            <select class="form-control" style="width: 100%;" name="unit_id" required>
-              <option value="">Select Unit</option>
+            <select class="form-control" style="width: 100%;" name="unit_id" >
+              <option value="">{{ __('Sélectionner une unité') }}</option>
               @foreach ($units as $item)
               <option value={{ $item->id }}
                 {{ $product->unit_id == $item->id ? 'selected' : '' }}>
@@ -80,43 +80,43 @@
               @endforeach
             </select>
           </div>
-          <!-- <div class="mb-3 col-md-6">
+          <div class="mb-3 col-md-6">
           <label for="quantity" class="form-label">
-            Initial Stock
+            Stock initial
             <span class="text-danger">*</span>
           </label>
-          <input type="number" class="form-control" placeholder="Enter quantity" name="quantity"
+          <input type="number" class="form-control" placeholder="Entrez la quantité" name="quantity"
             value="{{ old('quantity',$product->quantity) }}" required>
-        </div> -->
-          <div class="mb-3 col-md-6">
+        </div> 
+          <div class="mb-3 col-md-6" hidden>
             <label for="discount_type" class="form-label">
-              Discount Type
+              Type de remise
             </label>
             <select class="form-control form-select" name="discount_type">
-              <option value="">Select Discount Type</option>
+              <option value="">{{ __('Sélectionner le type de remise') }}</option>
               <option value="fixed" {{ $product->discount_type == 'fixed' ? 'selected' : '' }}>
-                Fixed
+                Fixe
               </option>
               <option value="percentage"
                 {{ $product->discount_type  == 'percentage' ? 'selected' : '' }}>
-                Percentage
+                Pourcentage
               </option>
             </select>
           </div>
-          <div class="mb-3 col-md-6">
+          <div class="mb-3 col-md-6" hidden>
             <label for="discount_value" class="form-label">
-              Discount Amount
+              Montant de la remise
             </label>
             <input type="number" step="0.01" min="0" class="form-control"
-              placeholder="Enter discount" name="discount" value="{{ old('discount',$product->discount) }}">
+              placeholder="Entrez la remise" name="discount" value="{{ old('discount',$product->discount) }}">
           </div>
           <div class="mb-3 col-md-6">
             <label for="purchase_price" class="form-label">
-              Purchase Price
+              Prix d'achat
               <span class="text-danger">*</span>
             </label>
             <input type="number" step="0.01" min="0" class="form-control"
-              placeholder="Enter purchase Price" name="purchase_price" value="{{ old('purchase_price',$product->purchase_price) }}" required>
+              placeholder="Entrez le prix d'achat" name="purchase_price" value="{{ old('purchase_price',$product->purchase_price) }}" required>
           </div>
           <div class="mb-3 col-md-6">
             <label for="thumbnailInput" class="form-label">
@@ -125,11 +125,10 @@
             <div class="image-upload-container" id="imageUploadContainer">
               <input type="file" class="form-control" name="product_image" id="thumbnailInput" accept="image/*" style="display: none;">
               <div class="thumb-preview" id="thumbPreviewContainer">
-                <img src="{{ asset('storage/' . $product->image) }}" alt="Thumbnail Preview"
-                  class="img-thumbnail" id="thumbnailPreview" onerror="this.onerror=null; this.src='{{ asset('assets/images/no-image.png') }}'">
+                <img src="{{ asset('storage/' . $product->image) }}" alt="Aperçu" class="img-thumbnail" id="thumbnailPreview" onerror="this.onerror=null; this.src='{{ asset('assets/images/no-image.png') }}'">
                 <div class="upload-text d-none">
                   <i class="fas fa-plus-circle"></i>
-                  <span>Upload Image</span>
+                  <span>Télécharger l'image</span>
                 </div>
               </div>
             </div>
@@ -139,16 +138,16 @@
             <label for="description" class="form-label">
               Description
             </label>
-            <textarea class="form-control" placeholder="Enter description" name="description">{{ old('description',$product->description) }}</textarea>
+            <textarea class="form-control" placeholder="Entrez la description" name="description">{{ old('description',$product->description) }}</textarea>
           </div>
 
-          <div class="mb-3 col-md-6">
+          <div class="mb-3 col-md-6" hidden>
             <label for="expire_date" class="form-label">
-              Expire date
+              Date d'expiration
             </label>
 
             <div class="input-group date" id="reservationdate" data-target-input="nearest">
-              <input type="text" placeholder="Enter product expire date" class="form-control datetimepicker-input" data-target="#reservationdate" name="expire_date" value="{{ old('expire_date',$product->expire_date) }}" />
+              <input type="text" placeholder="Entrez la date d'expiration du produit" class="form-control datetimepicker-input" data-target="#reservationdate" name="expire_date" value="{{ old('expire_date',$product->expire_date) }}" />
               <div class="input-group-append" data-target="#reservationdate" data-toggle="datetimepicker">
                 <div class="input-group-text"><i class="fa fa-calendar"></i></div>
               </div>
@@ -160,14 +159,14 @@
               <input class="form-check-input" type="checkbox" name="status" id="active"
                 value="1" @if($product->status==1) checked @endif>
               <label class="form-check-label" for="active">
-                Active
+                Actif
               </label>
             </div>
           </div>
         </div>
         <div class="row">
           <div class="col-md-6">
-            <button type="submit" class="btn bg-gradient-primary">Update</button>
+            <button type="submit" class="btn bg-gradient-primary">Mettre à jour</button>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 @extends('backend.master')
 
-@section('title', 'Sale Report')
+@section('title', 'Rapport de ventes')
 
 @section('content')
 <div class="card">
@@ -8,7 +8,7 @@
     <div class="form-group">
       <div class="input-group">
         <button type="button" class="btn btn-default float-right" id="daterange-btn">
-          <i class="far fa-calendar-alt"></i> Filter by date
+          <i class="far fa-calendar-alt"></i> Filtrer par date
           <i class="fas fa-caret-down"></i>
         </button>
       </div>
@@ -26,7 +26,7 @@
               <!-- /.col -->
               <div class="col-sm-4">
                 <address>
-                  <strong>Sale Summery ({{$start_date}} - {{$end_date}})</strong><br>
+                  <strong>Résumé des ventes ({{$start_date}} - {{$end_date}})</strong><br>
                 </address>
               </div>
               <!-- /.col -->
@@ -42,25 +42,33 @@
                 <div class="table-responsive">
                   <table class="table">
                     <tr>
-                      <th style="width:50%">Subtotal:</th>
+                      <th>Prix total d'achat :</th>
+                      <td class="text-right">{{ currency()->symbol ?? '' }} {{ number_format($total_purchase ?? 0, 2) }}</td>
+                    </tr>
+                    <tr>
+                      <th style="width:50%">Sous-total :</th>
                       <td class="text-right">{{currency()->symbol??''}} {{number_format($sub_total,2)}}</td>
                     </tr>
                     <tr>
-                      <th>Total Discount:</th>
+                      <th>Remise totale :</th>
                       <td class="text-right">{{currency()->symbol??''}} {{number_format($discount,2)}}</td>
                     </tr>
                     <tr>
-                      <th>Total Sold:</th>
+                      <th>Total vendu :</th>
                       <td class="text-right">{{currency()->symbol??''}} {{number_format($total,2)}}</td>
                     </tr>
                     <tr>
-                      <th>Customer Paid:</th>
+                      <th>Total vendu - Prix d'achat :</th>
+                      <td class="text-right">{{ currency()->symbol ?? '' }} {{ number_format( (($total ?? 0) - ($total_purchase ?? 0)), 2) }}</td>
+                    </tr>
+                    {{-- <tr>
+                      <th>Montant payé :</th>
                       <td class="text-right">{{currency()->symbol??''}} {{number_format($paid,2)}}</td>
                     </tr>
                     <tr>
-                      <th>Customer Due:</th>
+                      <th>Reste à payer :</th>
                       <td class="text-right">{{currency()->symbol??''}} {{number_format($due,2)}}</td>
-                    </tr>
+                    </tr> --}}
                   </table>
                 </div>
               </div>
@@ -69,8 +77,7 @@
             <!-- /.row -->
             <div class="row no-print">
               <div class="col-12">
-                <button type="button" onclick="window.print()" class="btn btn-success float-right"><i class="fas fa-print"></i> Print</a>
-                </button>
+                <button type="button" onclick="window.print()" class="btn btn-success float-right"><i class="fas fa-print"></i> Imprimer</button>
               </div>
             </div>
             <!-- /.row -->
@@ -99,18 +106,18 @@
     //Date range as a button
     $('#daterange-btn').daterangepicker({
         ranges: {
-          'Today': [moment(), moment()],
-          'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-          'Last 7 Days': [moment().subtract(6, 'days'), moment()],
-          'Last 30 Days': [moment().subtract(29, 'days'), moment()],
-          'This Month': [moment().startOf('month'), moment().endOf('month')],
-          'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+          'Aujourd\'hui': [moment(), moment()],
+          'Hier': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+          '7 derniers jours': [moment().subtract(6, 'days'), moment()],
+          '30 derniers jours': [moment().subtract(29, 'days'), moment()],
+          'Ce mois-ci': [moment().startOf('month'), moment().endOf('month')],
+          'Mois dernier': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
         },
         startDate: moment(startDate, "YYYY-MM-DD"),
         endDate: moment(endDate, "YYYY-MM-DD")
       },
       function(start, end) {
-        $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'))
+        $('#reportrange span').html(start.format('D MMMM YYYY') + ' - ' + end.format('D MMMM YYYY'))
         window.location.href = '{{ route("backend.admin.sale.summery") }}?start_date=' + start.format('YYYY-MM-DD') + '&end_date=' + end.format('YYYY-MM-DD');
       }
     )

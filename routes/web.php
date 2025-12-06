@@ -81,6 +81,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('collection/invoice/{id}', [OrderController::class, 'collectionInvoice'])->name('collectionInvoice');
     Route::resource('categories', CategoryController::class);
     Route::get('products/barcode/{id}', [ProductController::class, 'barcode'])->name('products.barcode');
+    Route::post('/product/other_article', [ProductController::class, 'other_article']);
     //start report
 
     Route::get('/sale/summery', [ReportController::class, 'saleSummery'])->name('sale.summery');

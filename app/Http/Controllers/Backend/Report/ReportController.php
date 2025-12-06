@@ -63,12 +63,48 @@ class ReportController extends Controller
         $orders = Order::whereBetween('created_at', [$start_date, $end_date])->get();
 
         // Calculate totals
+        $total_purchase = 0;
+
+        // candidate relation names and attribute names to detect purchase amount
+        $candidateRelations = ['orderItems', 'order_items', 'orderDetails', 'order_details', 'items', 'products', 'order_item'];
+        $candidateAttributes = ['total_purchase', 'purchase_total', 'purchase', 'purchase_amount'];
+
+        foreach ($orders as $order) {
+            // If the order has a direct purchase attribute, use it
+            $found = false;
+            foreach ($candidateAttributes as $attr) {
+            if (isset($order->$attr) && is_numeric($order->$attr)) {
+                $total_purchase += $order->$attr;
+                $found = true;
+                break;
+            }
+            }
+            if ($found) {
+            continue;
+            }
+
+            // Otherwise try to sum from related items (purchase_price * quantity)
+            foreach ($candidateRelations as $rel) {
+            if (method_exists($order, $rel)) {
+                $items = $order->$rel;
+                foreach ($items as $it) {
+                $price = $it->purchase_price ?? $it->cost_price ?? $it->unit_cost ?? ($it->pivot->purchase_price ?? ($it->pivot->cost_price ?? 0));
+                $qty = $it->quantity ?? $it->qty ?? ($it->pivot->quantity ?? 1);
+                $total_purchase += (float) ($price ?: 0) * (float) ($qty ?: 0);
+                }
+                $found = true;
+                break;
+            }
+            }
+        }
+
         $data = [
             'sub_total' => $orders->sum('sub_total'),
             'discount' => $orders->sum('discount'),
             'paid' => $orders->sum('paid'),
             'due' => $orders->sum('due'),
             'total' => $orders->sum('total'),
+            'total_purchase' => $total_purchase,
             'start_date' => $start_date->format('M d, Y'),
             'end_date' => $end_date->format('M d, Y'),
         ];

@@ -19,7 +19,7 @@
         @can('sale_create')
             <li class="nav-item dropdown">
                 <a class="nav-link btn bg-gradient-primary text-white" href="{{ route('backend.admin.cart.index') }}">
-                    <i class="fas fa-cart-plus"> POS</i>
+                    <i class="fas fa-cart-plus"> Caisse</i>
                 </a>
             </li>
         @endcan
@@ -68,7 +68,7 @@
                 <div class="dropdown-divider"></div>
                 <a href="{{ route('logout') }}" class="dropdown-item dropdown-footer">
                     <i class="fas fa-sign-out-alt"></i>
-                    Logout
+                    Deconnexion
                 </a>
             </div>
         </li>
