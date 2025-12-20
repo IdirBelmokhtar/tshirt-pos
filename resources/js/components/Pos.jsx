@@ -337,7 +337,7 @@ export default function Pos() {
             setIsDialogOpen(false);
 
             if (result.isConfirmed && result.value) {
-                createCustomerAndPayWithCredit(result.value);
+                orderCreateWithCredit(result.value);
             }
 
             // Refocus barcode input after dialog closes
@@ -351,72 +351,6 @@ export default function Pos() {
                 nameInput.focus();
             }
         }, 300);
-    };
-
-    // NEW: Function to create customer and pay with credit
-    const createCustomerAndPayWithCredit = async (customerData) => {
-        try {
-            // First create the customer
-            const doubledCredit = Math.round((parseFloat(customerData.credit || 0) * 2) * 100) / 100;
-            const customerResponse = await axios.post('/admin/create/customers', {
-                name: customerData.name,
-                phone: customerData.phone,
-                credit: doubledCredit,
-            });
-
-            const newCustomer = customerResponse.data.customer;
-            playSound(SuccessSound);
-            // toast.success('Client créé avec succès !');
-
-            // Use the newly created customer's id directly
-            const newCustomerId = newCustomer.id;
-            setCustomerId(newCustomerId);
-
-            // if (total <= 0) {
-            //     return;
-            // }
-
-            // toast.success("Création de la commande en cours...");
-
-            // axios
-            //     .put("/admin/order/create", {
-            //         customer_id: newCustomerId,
-            //         order_discount: parseFloat(orderDiscount) || 0,
-            //         paid: parseFloat(paid) || 0,
-            //     })
-            //     .then((res) => {
-            //         axios
-            //             .put("/admin/cart/empty")
-            //             .then((res) => {
-            //                 setCartUpdated(!cartUpdated);
-            //                 setOrderDiscount(0);
-            //                 setProductUpdated(!productUpdated);
-            //                 setSearchQuery("");
-            //                 playSound(SuccessSound);
-            //                 // toast.success(res?.data?.message);
-            //                 // NEW: Focus back to barcode after successful order
-            //                 setTimeout(focusBarcodeInput, 100);
-            //             })
-            //             .catch((err) => {
-            //                 playSound(WarningSound);
-            //                 // toast.error(err.response.data.message);
-            //                 // NEW: Focus back to barcode even on error
-            //                 setTimeout(focusBarcodeInput, 100);
-            //             });
-            //     })
-            //     .catch((err) => {
-            //         // toast.error(err.response.data.message);
-            //         // NEW: Focus back to barcode even on error
-            //         setTimeout(focusBarcodeInput, 100);
-            //     });
-
-        } catch (error) {
-            playSound(WarningSound);
-            console.error('Error creating customer:', error);
-            // toast.error(error.response?.data?.message || 'Erreur lors de la création du client');
-            // Focus back to barcode even on error
-            setTimeout(focusBarcodeInput, 100);
-        }
     };
 
     // NEW: Function to open Add Product dialog
@@ -563,6 +497,131 @@ export default function Pos() {
                 // NEW: Focus back to barcode even on error
                 setTimeout(focusBarcodeInput, 100);
             });
+    }
+
+    // NEW: Function to create customer and pay with credit
+    async function orderCreateWithCredit(customerData) {
+        try {
+            // Create new customer credit
+            const doubledCredit = Math.round(parseFloat(customerData.credit || 0));
+
+            // console.log('Creating customer with data:', {
+            //     name: customerData.name,
+            //     phone: customerData.phone,
+            //     credit: doubledCredit,
+            // });
+
+            const customerResponse = await axios.post('/admin/create/customers', {
+                name: customerData.name,
+                phone: customerData.phone,
+                credit: doubledCredit,
+            });
+
+            console.log('Customer response:', customerResponse.data);
+
+            // Check the actual response structure
+            let newCustomerId;
+
+            // Try different possible response structures
+            if (customerResponse.data.customer && customerResponse.data.customer.id) {
+                newCustomerId = customerResponse.data.customer.id;
+            } else if (customerResponse.data.id) {
+                newCustomerId = customerResponse.data.id;
+            } else if (customerResponse.data.data && customerResponse.data.data.id) {
+                newCustomerId = customerResponse.data.data.id;
+            } else {
+                console.error('Unexpected response structure:', customerResponse.data);
+                throw new Error('Structure de réponse inattendue du serveur');
+            }
+
+            console.log('New customer ID:', newCustomerId);
+
+            // Set customer ID in state (for UI)
+            setCustomerId(newCustomerId);
+
+            if (total <= 0) {
+                toast.error("Le panier est vide");
+                return;
+            }
+
+            // Create the order - try different approaches
+            let orderData;
+
+            // First try: with paid = 0 (credit payment)
+            orderData = {
+                customer_id: newCustomerId,
+                order_discount: parseFloat(orderDiscount) || 0,
+                paid: 0, // For credit payment
+            };
+
+            console.log('Creating order with data:', orderData);
+
+            try {
+                const orderResponse = await axios.put("/admin/order/create", orderData);
+                console.log('Order created successfully:', orderResponse.data);
+
+                // Empty the cart
+                await axios.put("/admin/cart/empty");
+
+                // Update states
+                setCartUpdated(!cartUpdated);
+                setOrderDiscount(0);
+                setProductUpdated(!productUpdated);
+                setSearchQuery("");
+                setPaid(0);
+
+                playSound(SuccessSound);
+                toast.success('Commande créée avec succès! Client payé avec crédit.');
+
+            } catch (orderError) {
+                console.log('First order attempt failed, trying alternative...', orderError.response?.data);
+
+                // If failed, try with paid = updateTotal
+                orderData = {
+                    customer_id: newCustomerId,
+                    order_discount: parseFloat(orderDiscount) || 0,
+                    paid: parseFloat(updateTotal), // Full amount
+                };
+
+                console.log('Trying alternative order data:', orderData);
+
+                const orderResponse = await axios.put("/admin/order/create", orderData);
+                console.log('Order created with alternative data:', orderResponse.data);
+
+                // Empty the cart
+                await axios.put("/admin/cart/empty");
+
+                // Update states
+                setCartUpdated(!cartUpdated);
+                setOrderDiscount(0);
+                setProductUpdated(!productUpdated);
+                setSearchQuery("");
+                setPaid(0);
+
+                playSound(SuccessSound);
+                toast.success('Commande créée avec succès!');
+            }
+
+            // Focus back to barcode
+            setTimeout(focusBarcodeInput, 100);
+
+        } catch (error) {
+            playSound(WarningSound);
+            console.error('Error in orderCreateWithCredit:', error);
+            console.error('Error response:', error.response?.data);
+
+            let errorMsg = 'Erreur lors de la création de la commande';
+
+            if (error.response?.data?.message) {
+                errorMsg = error.response.data.message;
+            } else if (error.message) {
+                errorMsg = error.message;
+            }
+
+            toast.error(errorMsg);
+
+            setTimeout(focusBarcodeInput, 100);
+        }
     }
     function orderCreate() {
         if (total <= 0) {

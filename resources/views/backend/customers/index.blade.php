@@ -47,7 +47,7 @@
       serverSide: true,
       ordering: true,
       order: [
-        [1, 'asc']
+        [5, 'asc']
       ],
       ajax: {
         url: "{{ route('backend.admin.customers.index') }}"
