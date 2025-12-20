@@ -23,6 +23,7 @@
                 <th>Name</th>
                 <th>Phone</th>
                 <th>Address</th>
+                <th>Credit</th>
                 <th>Created</th>
                 <th data-orderable="false">
                   Action
@@ -67,6 +68,10 @@
         {
           data: 'address',
           name: 'address'
+        },
+        {
+          data: 'credit',
+          name: 'credit'
         },
         {
           data: 'created_at',

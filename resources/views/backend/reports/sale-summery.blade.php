@@ -69,6 +69,10 @@
                       <th>Reste à payer :</th>
                       <td class="text-right">{{currency()->symbol??''}} {{number_format($due,2)}}</td>
                     </tr> --}}
+                    <tr>
+                      <th>Reste à payer :</th>
+                      <td class="text-right">{{currency()->symbol??''}} {{number_format($total_credit,2)}}</td>
+                    </tr>
                   </table>
                 </div>
               </div>

@@ -21,11 +21,12 @@ class CustomerController extends Controller
                 ->addColumn('name', fn($data) => $data->name)
                 ->addColumn('phone', fn($data) => $data->phone)
                 ->addColumn('address', fn($data) => $data->address)
+                ->addColumn('credit', fn($data) => currency()->symbol . ' ' . number_format($data->credit, 2))
                 ->addColumn('created_at', fn($data) => $data->created_at->format('d M, Y')) // Using Carbon for formatting
                 ->addColumn('action', function ($data) {
                     $actionHtml = '<div class="btn-group">
-        <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
-        <button type="button" class="btn bg-gradient-primary btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
+
+        <button type="button" class="btn bg-gradient-primary btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">Action
             <span class="sr-only">Toggle Dropdown</span>
         </button>
         <div class="dropdown-menu" role="menu">';
@@ -60,7 +61,7 @@ class CustomerController extends Controller
                     return $actionHtml;
                 })
 
-                ->rawColumns(['name', 'phone', 'address', 'created_at', 'action'])
+                ->rawColumns(['name', 'phone', 'address', 'credit', 'created_at', 'action'])
                 ->toJson();
         }
 
@@ -99,11 +100,12 @@ class CustomerController extends Controller
         }
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:customers,phone',
+            'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:255',
+            'credit' => 'nullable|numeric|min:0'
         ]);
 
-        $customer = Customer::create($request->only(['name', 'phone', 'address']));
+        $customer = Customer::create($request->only(['name', 'phone', 'address', 'credit']));
 
         session()->flash('success', 'Customer created successfully.');
         return to_route('backend.admin.customers.index');
@@ -139,11 +141,12 @@ class CustomerController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:customers,phone,' . $customer->id, // Corrected syntax
+            'phone' => 'nullable|string|max:20|unique:customers,phone,' . $customer->id, // Corrected syntax
             'address' => 'nullable|string|max:255',
+            'credit' => 'nullable|numeric|min:0',
         ]);
 
-        $customer->update($request->only(['name', 'phone', 'address']));
+        $customer->update($request->only(['name', 'phone', 'address', 'credit']));
 
         session()->flash('success', 'Customer updated successfully.');
         return to_route('backend.admin.customers.index');

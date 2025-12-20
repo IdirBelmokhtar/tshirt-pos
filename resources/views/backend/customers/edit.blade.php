@@ -22,10 +22,9 @@
           <div class="mb-3 col-md-6">
             <label for="title" class="form-label">
               Phone
-              <span class="text-danger">*</span>
             </label>
             <input type="text" class="form-control" placeholder="Enter phone" name="phone"
-              value="{{ $customer->phone }}" required>
+              value="{{ $customer->phone }}">
           </div>
           <div class="mb-3 col-md-6">
             <label for="title" class="form-label">
@@ -34,6 +33,12 @@
             <input type="text" class="form-control" placeholder="Enter Address" name="address"
               value="{{ $customer->address }}">
           </div>
+          <div class="mb-3 col-md-6">
+            <label for="title" class="form-label">
+              Credit
+            </label>
+            <input type="number" step="0.01" class="form-control" placeholder="Enter Credit" name="credit"
+              value="{{ $customer->credit }}">
         </div>
         <div class="row">
           <div class="col-md-6">

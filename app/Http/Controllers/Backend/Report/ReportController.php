@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Backend\Report;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
 use Carbon\Carbon;
@@ -62,6 +63,8 @@ class ReportController extends Controller
         // Retrieve orders within the date range
         $orders = Order::whereBetween('created_at', [$start_date, $end_date])->get();
 
+        $total_credit = Customer::sum('credit');
+
         // Calculate totals
         $total_purchase = 0;
 
@@ -105,6 +108,7 @@ class ReportController extends Controller
             'due' => $orders->sum('due'),
             'total' => $orders->sum('total'),
             'total_purchase' => $total_purchase,
+            'total_credit' => $total_credit,
             'start_date' => $start_date->format('M d, Y'),
             'end_date' => $end_date->format('M d, Y'),
         ];

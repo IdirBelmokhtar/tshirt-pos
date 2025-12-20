@@ -269,6 +269,155 @@ export default function Pos() {
             }, 300);
         }
     };
+    // NEW: Function to open Pay with Credit dialog
+    const openPayWithCreditDialog = () => {
+        setIsDialogOpen(true);
+        setIsBarcodeFocused(false);
+
+        Swal.fire({
+            title: 'Payer avec crédit',
+            html: `
+                <div style="text-align:left">
+                    <div class="form-group">
+                        <label for="swal-customer-name" style="font-weight:600;margin-bottom:6px;">Nom du client*</label>
+                        <input type="text" id="swal-customer-name" class="form-control" placeholder="Nom complet" style="font-size:14px;height:40px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="swal-customer-phone" style="font-weight:600;margin-bottom:6px;">Téléphone*</label>
+                        <input type="text" id="swal-customer-phone" class="form-control" placeholder="Numéro de téléphone" style="font-size:14px;height:40px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="swal-customer-credit" style="font-weight:600;margin-bottom:6px;">Crédit initial*</label>
+                        <input type="number" id="swal-customer-credit" class="form-control" placeholder="${updateTotal} DA" value="${updateTotal}" min="0" step="0.01" style="font-size:14px;height:40px;">
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            focusConfirm: false,
+            confirmButtonText: 'Créer et payer avec crédit',
+            cancelButtonText: 'Annuler',
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#d33',
+            allowOutsideClick: false,
+            preConfirm: () => {
+                const nameEl = document.getElementById('swal-customer-name');
+                const phoneEl = document.getElementById('swal-customer-phone');
+                const creditEl = document.getElementById('swal-customer-credit');
+
+                if (!nameEl || !phoneEl || !creditEl) {
+                    Swal.showValidationMessage('Erreur de chargement du formulaire');
+                    return false;
+                }
+
+                const name = (nameEl.value || "").trim();
+                const phone = (phoneEl.value || "").trim();
+                const creditRaw = creditEl.value;
+                const credit = parseFloat(creditRaw);
+
+                if (!name) {
+                    Swal.showValidationMessage('Le nom du client est requis');
+                    return false;
+                }
+                if (!phone) {
+                    Swal.showValidationMessage('Le numéro de téléphone est requis');
+                    return false;
+                }
+                if (creditRaw === "" || isNaN(credit) || credit < 0) {
+                    Swal.showValidationMessage('Veuillez saisir un montant de crédit valide');
+                    return false;
+                }
+                if (credit < updateTotal) {
+                    Swal.showValidationMessage(`Le crédit (${credit} DA) est inférieur au total (${updateTotal} DA)`);
+                    return false;
+                }
+
+                return { name, phone, credit };
+            }
+        }).then((result) => {
+            setIsDialogOpen(false);
+
+            if (result.isConfirmed && result.value) {
+                createCustomerAndPayWithCredit(result.value);
+            }
+
+            // Refocus barcode input after dialog closes
+            setTimeout(focusBarcodeInput, 500);
+        });
+
+        // Manually focus the first input after a delay to ensure Swal is rendered
+        setTimeout(() => {
+            const nameInput = document.getElementById('swal-customer-name');
+            if (nameInput) {
+                nameInput.focus();
+            }
+        }, 300);
+    };
+
+    // NEW: Function to create customer and pay with credit
+    const createCustomerAndPayWithCredit = async (customerData) => {
+        try {
+            // First create the customer
+            const doubledCredit = Math.round((parseFloat(customerData.credit || 0) * 2) * 100) / 100;
+            const customerResponse = await axios.post('/admin/create/customers', {
+                name: customerData.name,
+                phone: customerData.phone,
+                credit: doubledCredit,
+            });
+
+            const newCustomer = customerResponse.data.customer;
+            playSound(SuccessSound);
+            // toast.success('Client créé avec succès !');
+
+            // Use the newly created customer's id directly
+            const newCustomerId = newCustomer.id;
+            setCustomerId(newCustomerId);
+
+            // if (total <= 0) {
+            //     return;
+            // }
+
+            // toast.success("Création de la commande en cours...");
+
+            // axios
+            //     .put("/admin/order/create", {
+            //         customer_id: newCustomerId,
+            //         order_discount: parseFloat(orderDiscount) || 0,
+            //         paid: parseFloat(paid) || 0,
+            //     })
+            //     .then((res) => {
+            //         axios
+            //             .put("/admin/cart/empty")
+            //             .then((res) => {
+            //                 setCartUpdated(!cartUpdated);
+            //                 setOrderDiscount(0);
+            //                 setProductUpdated(!productUpdated);
+            //                 setSearchQuery("");
+            //                 playSound(SuccessSound);
+            //                 // toast.success(res?.data?.message);
+            //                 // NEW: Focus back to barcode after successful order
+            //                 setTimeout(focusBarcodeInput, 100);
+            //             })
+            //             .catch((err) => {
+            //                 playSound(WarningSound);
+            //                 // toast.error(err.response.data.message);
+            //                 // NEW: Focus back to barcode even on error
+            //                 setTimeout(focusBarcodeInput, 100);
+            //             });
+            //     })
+            //     .catch((err) => {
+            //         // toast.error(err.response.data.message);
+            //         // NEW: Focus back to barcode even on error
+            //         setTimeout(focusBarcodeInput, 100);
+            //     });
+
+        } catch (error) {
+            playSound(WarningSound);
+            console.error('Error creating customer:', error);
+            // toast.error(error.response?.data?.message || 'Erreur lors de la création du client');
+            // Focus back to barcode even on error
+            setTimeout(focusBarcodeInput, 100);
+        }
+    };
 
     // NEW: Function to open Add Product dialog
     const openAddProductDialog = () => {
@@ -555,10 +704,11 @@ export default function Pos() {
                                             {updateTotal}
                                         </div>
                                     </div>
+
                                 </div>
                             </div>
                             <div className="row">
-                                <div className="col">
+                                <div className="col-6">
                                     <button
                                         onClick={() => cartEmpty()}
                                         type="button"
@@ -567,7 +717,7 @@ export default function Pos() {
                                         Vider le panier
                                     </button>
                                 </div>
-                                <div className="col">
+                                <div className="col-6">
                                     <button
                                         id="checkoutBtn"
                                         onClick={() => {
@@ -577,6 +727,20 @@ export default function Pos() {
                                         className="btn bg-gradient-success btn-block text-white text-bold"
                                     >
                                         Encaisser
+                                    </button>
+                                </div>
+                            </div>
+                            {/* NEW: Pay with Credit Button */}
+                            <div className="row mt-3">
+                                <div className="col-12">
+                                    <button
+                                        onClick={openPayWithCreditDialog}
+                                        type="button"
+                                        className="btn bg-gradient-warning btn-block text-white text-bold"
+                                        disabled={total <= 0}
+                                    >
+                                        <i className="fas fa-credit-card mr-2"></i>
+                                        Payer avec crédit (Nouveau client)
                                     </button>
                                 </div>
                             </div>
@@ -660,17 +824,6 @@ export default function Pos() {
                                         }}
                                     />
                                 </div>
-
-                                {/* <div className="mb-2 col-md-2">
-                                    <button
-                                        type="button"
-                                        className="btn bg-gradient-info btn-block text-white"
-                                        onClick={openAddProductDialog}
-                                        title="Add new product"
-                                    >
-                                        <i className="fas fa-plus"></i> Other Article
-                                    </button>
-                                </div> */}
                             </div>
                             <div className="row products-card-container">
                                 {products.length > 0 &&
