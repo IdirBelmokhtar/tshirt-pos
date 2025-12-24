@@ -11,14 +11,14 @@ import playSound from "../utils/playSound";
 
 export default function Pos() {
     const [products, setProducts] = useState([]);
-    const [carts, setCarts] = useState([]);
+    // CHANGED: Now using local state for cart instead of fetching from API
+    const [cartItems, setCartItems] = useState([]);
     const [orderDiscount, setOrderDiscount] = useState(0);
     const [paid, setPaid] = useState(0);
     const [due, setDue] = useState(0);
     const [total, setTotal] = useState(0);
     const [updateTotal, setUpdateTotal] = useState(0);
     const [customerId, setCustomerId] = useState();
-    const [cartUpdated, setCartUpdated] = useState(false);
     const [productUpdated, setProductUpdated] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchBarcode, setSearchBarcode] = useState("");
@@ -40,6 +40,26 @@ export default function Pos() {
         isDialogOpenRef.current = isDialogOpen;
     }, [isDialogOpen]);
 
+    // CHANGED: Calculate totals from local cartItems
+    useEffect(() => {
+        const subtotal = cartItems.reduce(
+            (sum, item) => sum + (item.product?.discounted_price || 0) * item.quantity,
+            0
+        );
+        
+        const totalDiscountItems = cartItems.reduce(
+            (sum, item) => sum + (item.discount || 0),
+            0
+        );
+        
+        const calculatedTotal = subtotal - totalDiscountItems - orderDiscount;
+        const dueAmount = calculatedTotal - paid;
+        
+        setTotal(subtotal);
+        setUpdateTotal(calculatedTotal?.toFixed(2));
+        setDue(dueAmount?.toFixed(2));
+    }, [cartItems, orderDiscount, paid]);
+
     const getProducts = useCallback(
         async (search = "", page = 1, barcode = "") => {
             setLoading(true);
@@ -50,8 +70,8 @@ export default function Pos() {
                 const productsData = res.data;
                 setProducts((prev) => [...prev, ...productsData.data]); // Append new products
                 if (productsData.data.length === 1 && barcode != "") {
-                    addProductToCart(productsData.data[0].id);
-                    getCarts();
+                    // CHANGED: Add to local cart instead of API call
+                    addProductToCartLocal(productsData.data[0]);
                 }
                 setTotalPages(productsData.meta.last_page); // Get total pages
 
@@ -61,11 +81,10 @@ export default function Pos() {
                     document.getElementById("checkoutBtn").click();
                 }
                 if (barcode === "0") { // 0 → Clear
-                    document.querySelector(".btn.bg-gradient-danger").click();
+                    cartEmptyLocal();
                 }
                 if (barcode === "-") { // - → Open Discount
                     if (updateTotal <= 0) {
-
                         getProducts("", currentPage, "");
                     }
                     document.querySelector('input[placeholder="Saisir la remise"]').click();
@@ -82,6 +101,7 @@ export default function Pos() {
         },
         []
     );
+    
     const getUpdatedProducts = useCallback(async () => {
         try {
             const res = await axios.get('/admin/get/products');
@@ -92,45 +112,95 @@ export default function Pos() {
             console.error("Error fetching products:", error);
         }
     }, []);
+    
     useEffect(() => {
         getUpdatedProducts();
     }, [productUpdated]);
 
-    const getCarts = async () => {
-        try {
-            const res = await axios.get('/admin/cart');
-            const data = res.data;
-            setTotal(data?.total);
-            setOrderDiscount(data?.discount);
-            setUpdateTotal(data?.total - orderDiscount);
-            setCarts(data?.carts);
-        } catch (error) {
-            console.error("Error fetching carts:", error);
+    // CHANGED: Local cart functions (no API calls)
+    const addProductToCartLocal = (product) => {
+        const existing = cartItems.find(item => item.product.id === product.id);
+        
+        if (existing) {
+            setCartItems(cartItems.map(item =>
+                item.product.id === product.id
+                    ? { ...item, quantity: item.quantity + 1 }
+                    : item
+            ));
+        } else {
+            const newCartItem = {
+                id: Date.now(), // Local ID
+                product_id: product.id,
+                product: product,
+                quantity: 1,
+                discount: 0,
+            };
+            setCartItems([...cartItems, newCartItem]);
         }
+        
+        playSound(SuccessSound);
+        toast.success(`${product.name} ajouté au panier`);
+        setSearchQuery("");
+        setSearchBarcode("");
+        setTimeout(focusBarcodeInput, 100);
     };
 
-    useEffect(() => {
-        getCarts();
-    }, []);
+    // CHANGED: Local increment
+    const incrementLocal = (id) => {
+        setCartItems(cartItems.map(item =>
+            item.id === id
+                ? { ...item, quantity: item.quantity + 1 }
+                : item
+        ));
+        playSound(SuccessSound);
+        toast.success("Quantité augmentée");
+    };
 
-    useEffect(() => {
-        getCarts();
-    }, [cartUpdated]);
+    // CHANGED: Local decrement
+    const decrementLocal = (id) => {
+        const item = cartItems.find(item => item.id === id);
+        if (!item) return;
+        
+        if (item.quantity <= 1) {
+            destroyLocal(id);
+            return;
+        }
+        
+        setCartItems(cartItems.map(item =>
+            item.id === id && item.quantity > 1
+                ? { ...item, quantity: item.quantity - 1 }
+                : item
+        ));
+        playSound(SuccessSound);
+        toast.success("Quantité diminuée");
+    };
 
-    useEffect(() => {
-        let paid1 = paid;
-        let disc = orderDiscount;
-        if (paid == "") {
-            paid1 = 0;
-        }
-        if (orderDiscount == "") {
-            disc = 0;
-        }
-        const updatedTotalAmount = parseFloat(total) - parseFloat(disc);
-        const dueAmount = updatedTotalAmount - parseFloat(paid1);
-        setUpdateTotal(updatedTotalAmount?.toFixed(2));
-        setDue(dueAmount?.toFixed(2));
-    }, [orderDiscount, paid, total]);
+    // CHANGED: Local destroy
+    const destroyLocal = (id) => {
+        setCartItems(cartItems.filter(item => item.id !== id));
+        playSound(SuccessSound);
+        toast.success("Article supprimé");
+    };
+
+    // CHANGED: Local discount update
+    const updateDiscountLocal = (id, discount) => {
+        setCartItems(cartItems.map(item => {
+            if (item.id !== id) return item;
+            const maxDiscount = item.product.discounted_price * item.quantity;
+            const newDiscount = Math.min(Math.max(Number(discount) || 0, 0), maxDiscount);
+            return { ...item, discount: newDiscount };
+        }));
+    };
+
+    // CHANGED: Local cart empty
+    const cartEmptyLocal = () => {
+        setCartItems([]);
+        setOrderDiscount(0);
+        playSound(SuccessSound);
+        toast.success("Panier vidé");
+        setTimeout(focusBarcodeInput, 100);
+    };
+
     useEffect(() => {
         if (searchQuery) {
             setProducts([]);
@@ -269,6 +339,7 @@ export default function Pos() {
             }, 300);
         }
     };
+    
     // NEW: Function to open Pay with Credit dialog
     const openPayWithCreditDialog = () => {
         setIsDialogOpen(true);
@@ -444,7 +515,8 @@ export default function Pos() {
                 .then((response) => {
                     playSound(SuccessSound);
                     setProductUpdated(!productUpdated);
-                    addProductToCart(response.data.product.id);
+                    // CHANGED: Add to local cart
+                    addProductToCartLocal(response.data.product);
                     toast.success('Produit créé avec succès !');
                 })
                 .catch((error) => {
@@ -459,57 +531,24 @@ export default function Pos() {
         }
     };
 
+    // CHANGED: Function to add product to cart - now uses local function
     function addProductToCart(id) {
-        axios
-            .post("/admin/cart", { id })
-            .then((res) => {
-                setCartUpdated(!cartUpdated);
-                setSearchQuery("");
-                playSound(SuccessSound);
-                toast.success(res?.data?.message);
-                setSearchBarcode("");
-                // NEW: Focus back to barcode after adding product
-                setTimeout(focusBarcodeInput, 100);
-            })
-            .catch((err) => {
-                playSound(WarningSound);
-                toast.error(err.response.data.message);
-                // NEW: Focus back to barcode even on error
-                setTimeout(focusBarcodeInput, 100);
-            });
-    }
-    function cartEmpty() {
-        axios
-            .put("/admin/cart/empty")
-            .then((res) => {
-                setCartUpdated(!cartUpdated);
-                setOrderDiscount(0);
-                setProductUpdated(!productUpdated);
-                setSearchQuery("");
-                playSound(SuccessSound);
-                toast.success(res?.data?.message);
-                // NEW: Focus back to barcode after clearing cart
-                setTimeout(focusBarcodeInput, 100);
-            })
-            .catch((err) => {
-                playSound(WarningSound);
-                toast.error(err.response.data.message);
-                // NEW: Focus back to barcode even on error
-                setTimeout(focusBarcodeInput, 100);
-            });
+        const product = products.find(p => p.id === id);
+        if (product) {
+            addProductToCartLocal(product);
+        }
     }
 
-    // NEW: Function to create customer and pay with credit
+    // CHANGED: Function to empty cart - now uses local function
+    function cartEmpty() {
+        cartEmptyLocal();
+    }
+
+    // CHANGED: Function to create customer and pay with credit
     async function orderCreateWithCredit(customerData) {
         try {
             // Create new customer credit
             const doubledCredit = Math.round(parseFloat(customerData.credit || 0));
-
-            // console.log('Creating customer with data:', {
-            //     name: customerData.name,
-            //     phone: customerData.phone,
-            //     credit: doubledCredit,
-            // });
 
             const customerResponse = await axios.post('/admin/create/customers', {
                 name: customerData.name,
@@ -519,10 +558,8 @@ export default function Pos() {
 
             console.log('Customer response:', customerResponse.data);
 
-            // Check the actual response structure
             let newCustomerId;
 
-            // Try different possible response structures
             if (customerResponse.data.customer && customerResponse.data.customer.id) {
                 newCustomerId = customerResponse.data.customer.id;
             } else if (customerResponse.data.id) {
@@ -536,7 +573,6 @@ export default function Pos() {
 
             console.log('New customer ID:', newCustomerId);
 
-            // Set customer ID in state (for UI)
             setCustomerId(newCustomerId);
 
             if (total <= 0) {
@@ -544,14 +580,22 @@ export default function Pos() {
                 return;
             }
 
-            // Create the order - try different approaches
+            // CHANGED: Prepare cart data for order
+            const orderItems = cartItems.map(item => ({
+                product_id: item.product_id,
+                quantity: item.quantity,
+                price: item.product.discounted_price,
+                discount: item.discount || 0,
+            }));
+
             let orderData;
 
             // First try: with paid = 0 (credit payment)
             orderData = {
                 customer_id: newCustomerId,
                 order_discount: parseFloat(orderDiscount) || 0,
-                paid: 0, // For credit payment
+                paid: 0,
+                items: orderItems, // Send cart items
             };
 
             console.log('Creating order with data:', orderData);
@@ -560,14 +604,8 @@ export default function Pos() {
                 const orderResponse = await axios.put("/admin/order/create", orderData);
                 console.log('Order created successfully:', orderResponse.data);
 
-                // Empty the cart
-                await axios.put("/admin/cart/empty");
-
-                // Update states
-                setCartUpdated(!cartUpdated);
-                setOrderDiscount(0);
-                setProductUpdated(!productUpdated);
-                setSearchQuery("");
+                // CHANGED: Clear local cart
+                cartEmptyLocal();
                 setPaid(0);
 
                 playSound(SuccessSound);
@@ -580,7 +618,8 @@ export default function Pos() {
                 orderData = {
                     customer_id: newCustomerId,
                     order_discount: parseFloat(orderDiscount) || 0,
-                    paid: parseFloat(updateTotal), // Full amount
+                    paid: parseFloat(updateTotal),
+                    items: orderItems,
                 };
 
                 console.log('Trying alternative order data:', orderData);
@@ -588,21 +627,14 @@ export default function Pos() {
                 const orderResponse = await axios.put("/admin/order/create", orderData);
                 console.log('Order created with alternative data:', orderResponse.data);
 
-                // Empty the cart
-                await axios.put("/admin/cart/empty");
-
-                // Update states
-                setCartUpdated(!cartUpdated);
-                setOrderDiscount(0);
-                setProductUpdated(!productUpdated);
-                setSearchQuery("");
+                // CHANGED: Clear local cart
+                cartEmptyLocal();
                 setPaid(0);
 
                 playSound(SuccessSound);
                 toast.success('Commande créée avec succès!');
             }
 
-            // Focus back to barcode
             setTimeout(focusBarcodeInput, 100);
 
         } catch (error) {
@@ -623,49 +655,46 @@ export default function Pos() {
             setTimeout(focusBarcodeInput, 100);
         }
     }
+    
     function orderCreate() {
         if (total <= 0) {
             return;
         }
         if (!customerId) {
             toast.error("Veuillez sélectionner un client");
-            // NEW: Focus back to barcode when customer not selected
             setTimeout(focusBarcodeInput, 100);
             return;
         }
+
+        // CHANGED: Prepare cart data for order
+        const orderItems = cartItems.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: item.product.discounted_price,
+            discount: item.discount || 0,
+        }));
 
         axios
             .put("/admin/order/create", {
                 customer_id: customerId,
                 order_discount: parseFloat(orderDiscount) || 0,
                 paid: parseFloat(paid) || 0,
+                items: orderItems, // Send cart items
             })
             .then((res) => {
-                axios
-                    .put("/admin/cart/empty")
-                    .then((res) => {
-                        setCartUpdated(!cartUpdated);
-                        setOrderDiscount(0);
-                        setProductUpdated(!productUpdated);
-                        setSearchQuery("");
-                        playSound(SuccessSound);
-                        toast.success(res?.data?.message);
-                        // NEW: Focus back to barcode after successful order
-                        setTimeout(focusBarcodeInput, 100);
-                    })
-                    .catch((err) => {
-                        playSound(WarningSound);
-                        toast.error(err.response.data.message);
-                        // NEW: Focus back to barcode even on error
-                        setTimeout(focusBarcodeInput, 100);
-                    });
+                // CHANGED: Clear local cart instead of API call
+                cartEmptyLocal();
+                setPaid(0);
+                playSound(SuccessSound);
+                toast.success('Commande créée avec succès!');
+                setTimeout(focusBarcodeInput, 100);
             })
             .catch((err) => {
                 toast.error(err.response.data.message);
-                // NEW: Focus back to barcode even on error
                 setTimeout(focusBarcodeInput, 100);
             });
     }
+    
     return (
         <>
             <div className="card">
@@ -715,10 +744,13 @@ export default function Pos() {
                                     />
                                 </div>
                             </div>
+                            {/* CHANGED: Pass cartItems and local functions to Cart component */}
                             <Cart
-                                carts={carts}
-                                setCartUpdated={setCartUpdated}
-                                cartUpdated={cartUpdated}
+                                cartItems={cartItems}
+                                increment={incrementLocal}
+                                decrement={decrementLocal}
+                                updateDiscount={updateDiscountLocal}
+                                removeItem={destroyLocal}
                             />
                             <div className="card">
                                 <div className="card-body">

@@ -68,7 +68,7 @@ class OrderController extends Controller
             'customer_id' => [
                 'required',
                 'exists:customers,id',
-                'integer', // Ensure customer_id is an integer
+                'integer',
             ],
             'order_discount' => [
                 'nullable',
@@ -80,58 +80,106 @@ class OrderController extends Controller
                 'numeric',
                 'min:0',
             ],
+            'items' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+            'items.*.product_id' => [
+                'required',
+                'exists:products,id',
+                'integer',
+            ],
+            'items.*.quantity' => [
+                'required',
+                'integer',
+                'min:1',
+            ],
+            'items.*.price' => [
+                'required',
+                'numeric',
+                'min:0',
+            ],
+            'items.*.discount' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
         ], [
             'customer_id.required' => 'Please select a customer.',
             'customer_id.exists' => 'The selected customer does not exist.',
             'order_discount.numeric' => 'The order discount must be a number.',
             'paid.numeric' => 'The amount paid must be a number.',
+            'items.required' => 'The cart is empty.',
+            'items.min' => 'The cart is empty.',
         ]);
-        $carts = PosCart::with('product')->where('user_id', auth()->id())->get();
+
+        // Get cart items from request instead of database
+        $cartItems = $request->items;
+
         $order = Order::create([
             'customer_id' => $request->customer_id,
-            'user_id' => $request->user()->id,
+            'user_id' => auth()->id(),
         ]);
+
         $totalAmountOrder = 0;
-        $orderDiscount = $request->order_discount;
-        foreach ($carts as $cart) {
-            $mainTotal = $cart->product->price * $cart->quantity;
-            $totalAfterDiscount = $cart->product->discounted_price * $cart->quantity;
-            $discount = $cart->discount;
-            // $discount = $mainTotal - $totalAfterDiscount;
+        $orderDiscount = $request->order_discount ?? 0;
+
+        foreach ($cartItems as $item) {
+            // Fetch the product to get purchase_price and other details
+            $product = Product::findOrFail($item['product_id']);
+
+            $mainTotal = $product->price * $item['quantity'];
+            $totalAfterDiscount = ($item['price'] * $item['quantity']) - ($item['discount'] ?? 0);
+
             $totalAmountOrder += $totalAfterDiscount;
+
             $order->products()->create([
-                'quantity' => $cart->quantity,
-                'price' => $cart->product->price,
-                'purchase_price' => $cart->product->purchase_price,
+                'quantity' => $item['quantity'],
+                'price' => $product->price,
+                'purchase_price' => $product->purchase_price,
                 'sub_total' => $mainTotal,
-                'discount' => $discount,
+                'discount' => $item['discount'] ?? 0,
                 'total' => $totalAfterDiscount,
-                'product_id' => $cart->product->id,
+                'product_id' => $product->id,
             ]);
-            $cart->product->quantity = $cart->product->quantity - $cart->quantity;
-            $cart->product->save();
+
+            // Update product stock
+            if ($product->quantity > 0) {
+                $product->quantity = $product->quantity - $item['quantity'];
+                if ($product->quantity < 0) {
+                    $product->quantity = 0;
+                }
+                $product->save();
+            }
         }
+
         $total = $totalAmountOrder - $orderDiscount;
-        $due = $total - $request->paid;
+        $paid = $request->paid ?? 0;
+        $due = $total - $paid;
+
         $order->sub_total = $totalAmountOrder;
         $order->discount = $orderDiscount;
-        $order->paid = $request->paid;
+        $order->paid = $paid;
         $order->total = round((float)$total, 2);
         $order->due = round((float)$due, 2);
         $order->status = round((float)$due, 2) <= 0;
         $order->save();
-        //create order transaction
-        if ($request->paid > 0) {
-            $orderTransaction = $order->transactions()->create([
-                'amount' => $request->paid,
+
+        // Create order transaction if payment was made
+        if ($paid > 0) {
+            $order->transactions()->create([
+                'amount' => $paid,
                 'customer_id' => $order->customer_id,
                 'user_id' => auth()->id(),
                 'paid_by' => 'cash',
             ]);
         }
 
-        $carts = PosCart::where('user_id', auth()->id())->delete();
-        return response()->json(['message' => 'Order completed successfully', 'order' => $order], 200);
+        return response()->json([
+            'message' => 'Order completed successfully',
+            'order' => $order
+        ], 200);
     }
 
     /**
@@ -218,7 +266,7 @@ class OrderController extends Controller
     public function posInvoice($id)
     {
         $order = Order::with(['customer', 'products.product'])->findOrFail($id);
-        $maxWidth = readConfig('receiptMaxwidth')??'300px';
+        $maxWidth = readConfig('receiptMaxwidth') ?? '300px';
         return view('backend.orders.pos-invoice', compact('order', 'maxWidth'));
     }
 }

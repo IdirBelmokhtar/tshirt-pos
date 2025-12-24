@@ -1,64 +1,21 @@
-import axios from "axios";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Swal from "sweetalert2";
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
-export default function Cart({ carts, setCartUpdated, cartUpdated }) {
+export default function Cart({ 
+    cartItems, 
+    increment, 
+    decrement, 
+    updateDiscount, 
+    removeItem 
+}) {
     // NEW: State to track if discount dialog is open
     const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
 
-    function increment(id) {
-        axios
-            .put("/admin/cart/increment", {
-                id: id,
-            })
-            .then((res) => {
-                setCartUpdated(!cartUpdated);
-                playSound(SuccessSound);
-                toast.success(res?.data?.message);
-            })
-            .catch((err) => {
-                playSound(WarningSound);
-                toast.error(err.response.data.message);
-            });
-    }
-
-    function decrement(id) {
-        axios
-            .put("/admin/cart/decrement", {
-                id: id,
-            })
-            .then((res) => {
-                setCartUpdated(!cartUpdated);
-                playSound(SuccessSound);
-                toast.success(res?.data?.message);
-            })
-            .catch((err) => {
-                playSound(WarningSound);
-                toast.error(err.response.data.message);
-            });
-    }
-
-    function destroy(id) {
-        axios
-            .put("/admin/cart/delete", {
-                id: id,
-            })
-            .then((res) => {
-                console.log(res);
-                setCartUpdated(!cartUpdated);
-                playSound(SuccessSound);
-                toast.success(res?.data?.message);
-            })
-            .catch((err) => {
-                toast.error(err.response.data.message);
-            });
-    }
-
-    // NEW: Updated discount function with dialog
+    // CHANGED: Function to open discount dialog
     function openDiscountDialog(item) {
         setIsDiscountDialogOpen(true);
 
@@ -97,7 +54,9 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
 
             if (result.isConfirmed) {
                 const discountValue = parseFloat(result.value);
-                applyDiscount(item.id, discountValue);
+                updateDiscount(item.id, discountValue);
+                playSound(SuccessSound);
+                toast.success('Remise appliquée avec succès');
             }
 
             // Refocus barcode input after discount dialog closes
@@ -119,24 +78,6 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
         }, 300);
     }
 
-    // NEW: Separate function to apply the discount
-    function applyDiscount(id, discountValue) {
-        axios
-            .put("/admin/cart/discount", {
-                id: id,
-                discount: discountValue,
-            })
-            .then((res) => {
-                setCartUpdated(!cartUpdated);
-                playSound(SuccessSound);
-                toast.success(res?.data?.message);
-            })
-            .catch((err) => {
-                playSound(WarningSound);
-                toast.error(err.response.data.message);
-            });
-    }
-
     return (
         <>
             <div className="user-cart">
@@ -155,78 +96,88 @@ export default function Cart({ carts, setCartUpdated, cartUpdated }) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {carts.map((item) => (
-                                        <tr key={item.id}>
-                                            <td>{item.product.name}</td>
-                                            <td className="d-flex align-items-center">
-                                                <button
-                                                    className="btn btn-warning btn-sm"
-                                                    onClick={() =>
-                                                        decrement(item.id)
-                                                    }
-                                                    title="Diminuer la quantité"
-                                                >
-                                                    <i className="fas fa-minus"></i>
-                                                </button>
-                                                <input
-                                                    type="number"
-                                                    className="form-control form-control-sm qty ml-1 mr-1"
-                                                    value={item.quantity}
-                                                    disabled
-                                                />
-                                                <button
-                                                    className="btn btn-success btn-sm"
-                                                    onClick={() =>
-                                                        increment(item.id)
-                                                    }
-                                                    title="Augmenter la quantité"
-                                                >
-                                                    <i className="fas fa-plus "></i>
-                                                </button>
-                                            </td>
-                                            <td className="text-right">
-                                                {item?.product?.discounted_price}
-                                                {item?.product?.price >
-                                                    item?.product
-                                                        ?.discounted_price ? (
-                                                    <>
-                                                        <br />
-                                                        <del>
-                                                            {item?.product?.price}
-                                                        </del>
-                                                    </>
-                                                ) : (
-                                                    ""
-                                                )}
-                                            </td>
-                                            <td>
-                                                {/* Discount input with French tooltip */}
-                                                <input
-                                                    type="number"
-                                                    className="form-control form-control-sm qty ml-1 mr-1"
-                                                    value={item.discount || 0}
-                                                    readOnly
-                                                    style={{ cursor: "pointer" }}
-                                                    onClick={() => openDiscountDialog(item)}
-                                                    title="Cliquez pour modifier la remise"
-                                                />
-                                            </td>
-                                            <td className="text-right">
-                                                {(item?.row_total || 0) - (item?.discount * item?.quantity || 0)}
-                                            </td>
-                                            <td>
-                                                <button
-                                                    className="btn btn-danger btn-sm mr-3"
-                                                    onClick={() =>
-                                                        destroy(item.id)
-                                                    }
-                                                    title="Supprimer"
-                                                >
-                                                    <i className="fas fa-trash "></i>
-                                                </button>
+                                    {cartItems.map((item) => {
+                                        const lineTotal = (item.product.discounted_price * item.quantity) - (item.discount || 0);
+                                        return (
+                                            <tr key={item.id}>
+                                                <td>{item.product.name}</td>
+                                                <td className="d-flex align-items-center">
+                                                    <button
+                                                        className="btn btn-warning btn-sm"
+                                                        onClick={() =>
+                                                            decrement(item.id)
+                                                        }
+                                                        title="Diminuer la quantité"
+                                                    >
+                                                        <i className="fas fa-minus"></i>
+                                                    </button>
+                                                    <input
+                                                        type="number"
+                                                        className="form-control form-control-sm qty ml-1 mr-1"
+                                                        value={item.quantity}
+                                                        disabled
+                                                    />
+                                                    <button
+                                                        className="btn btn-success btn-sm"
+                                                        onClick={() =>
+                                                            increment(item.id)
+                                                        }
+                                                        title="Augmenter la quantité"
+                                                    >
+                                                        <i className="fas fa-plus "></i>
+                                                    </button>
+                                                </td>
+                                                <td className="text-right">
+                                                    {item?.product?.discounted_price}
+                                                    {item?.product?.price >
+                                                        item?.product
+                                                            ?.discounted_price ? (
+                                                        <>
+                                                            <br />
+                                                            <del>
+                                                                {item?.product?.price}
+                                                            </del>
+                                                        </>
+                                                    ) : (
+                                                        ""
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    {/* Discount input with French tooltip */}
+                                                    <input
+                                                        type="number"
+                                                        className="form-control form-control-sm qty ml-1 mr-1"
+                                                        value={item.discount || 0}
+                                                        readOnly
+                                                        style={{ cursor: "pointer" }}
+                                                        onClick={() => openDiscountDialog(item)}
+                                                        title="Cliquez pour modifier la remise"
+                                                    />
+                                                </td>
+                                                <td className="text-right">
+                                                    {lineTotal.toFixed(2)}
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        className="btn btn-danger btn-sm mr-3"
+                                                        onClick={() =>
+                                                            removeItem(item.id)
+                                                        }
+                                                        title="Supprimer"
+                                                    >
+                                                        <i className="fas fa-trash "></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {cartItems.length === 0 && (
+                                        <tr>
+                                            <td colSpan="6" className="text-center">
+                                                Panier vide
                                             </td>
                                         </tr>
-                                    ))}
+                                    )}
                                 </tbody>
                             </table>
                         </div>
