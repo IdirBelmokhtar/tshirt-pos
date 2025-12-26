@@ -60,64 +60,6 @@ export default function Pos() {
         setDue(dueAmount?.toFixed(2));
     }, [cartItems, orderDiscount, paid]);
 
-    const getProducts = useCallback(
-        async (search = "", page = 1, barcode = "") => {
-            setLoading(true);
-            try {
-                const res = await axios.get('/admin/get/products', {
-                    params: { search, page, barcode },
-                });
-                const productsData = res.data;
-                setProducts((prev) => [...prev, ...productsData.data]); // Append new products
-                if (productsData.data.length === 1 && barcode != "") {
-                    // CHANGED: Add to local cart instead of API call
-                    addProductToCartLocal(productsData.data[0]);
-                }
-                setTotalPages(productsData.meta.last_page); // Get total pages
-
-                // Here i verifie every caracter of searchBarcode is written
-                setSearchBarcode("");
-                if (barcode === " ") { // SPACE → Checkout
-                    document.getElementById("checkoutBtn").click();
-                }
-                if (barcode === "0") { // 0 → Clear
-                    cartEmptyLocal();
-                }
-                if (barcode === "-") { // - → Open Discount
-                    if (updateTotal <= 0) {
-                        getProducts("", currentPage, "");
-                    }
-                    // FIXED: Use the dialog function instead of clicking the input
-                    openDialog('discount');
-                }
-                if (barcode === "+") { // + → Ajouter autre article
-                    // openAddProductDialog();
-                }
-
-            } catch (error) {
-                console.error("Error fetching products:", error);
-            } finally {
-                setLoading(false); // Set loading to false
-            }
-        },
-        [updateTotal, currentPage] // Added dependencies
-    );
-    
-    const getUpdatedProducts = useCallback(async () => {
-        try {
-            const res = await axios.get('/admin/get/products');
-            const productsData = res.data;
-            setProducts(productsData.data);
-            setTotalPages(productsData.meta.last_page); // Get total pages
-        } catch (error) {
-            console.error("Error fetching products:", error);
-        }
-    }, []);
-    
-    useEffect(() => {
-        getUpdatedProducts();
-    }, [productUpdated]);
-
     // CHANGED: Local cart functions (no API calls)
     const addProductToCartLocal = (product) => {
         const existing = cartItems.find(item => item.product.id === product.id);
@@ -191,8 +133,6 @@ export default function Pos() {
             const newDiscount = Math.min(Math.max(Number(discount) || 0, 0), maxDiscount);
             return { ...item, discount: newDiscount };
         }));
-        playSound(SuccessSound);
-        toast.success('Remise appliquée avec succès');
     };
 
     // CHANGED: Local cart empty
@@ -203,6 +143,63 @@ export default function Pos() {
         toast.success("Panier vidé");
         setTimeout(focusBarcodeInput, 100);
     };
+
+    const getProducts = useCallback(
+        async (search = "", page = 1, barcode = "") => {
+            setLoading(true);
+            try {
+                const res = await axios.get('/admin/get/products', {
+                    params: { search, page, barcode },
+                });
+                const productsData = res.data;
+                setProducts((prev) => [...prev, ...productsData.data]); // Append new products
+                if (productsData.data.length === 1 && barcode != "") {
+                    // FIXED: Add to LOCAL cart instead of API call
+                    addProductToCartLocal(productsData.data[0]);
+                }
+                setTotalPages(productsData.meta.last_page); // Get total pages
+
+                // Here i verifie every caracter of searchBarcode is written
+                setSearchBarcode("");
+                if (barcode === " ") { // SPACE → Checkout
+                    document.getElementById("checkoutBtn").click();
+                }
+                if (barcode === "0") { // 0 → Clear
+                    cartEmptyLocal(); // FIXED: Call local function
+                }
+                if (barcode === "-") { // - → Open Discount
+                    if (updateTotal <= 0) {
+                        getProducts("", currentPage, "");
+                    }
+                    document.querySelector('input[placeholder="Saisir la remise"]').click();
+                }
+                if (barcode === "+") { // + → Ajouter autre article
+                    // openAddProductDialog();
+                }
+
+            } catch (error) {
+                console.error("Error fetching products:", error);
+            } finally {
+                setLoading(false); // Set loading to false
+            }
+        },
+        []
+    );
+    
+    const getUpdatedProducts = useCallback(async () => {
+        try {
+            const res = await axios.get('/admin/get/products');
+            const productsData = res.data;
+            setProducts(productsData.data);
+            setTotalPages(productsData.meta.last_page); // Get total pages
+        } catch (error) {
+            console.error("Error fetching products:", error);
+        }
+    }, []);
+    
+    useEffect(() => {
+        getUpdatedProducts();
+    }, [productUpdated]);
 
     useEffect(() => {
         if (searchQuery) {
@@ -283,7 +280,7 @@ export default function Pos() {
                     // This will be called when confirm button is clicked
                 },
                 inputValidator: (value) => {
-                    if (!value && value !== 0) {
+                    if (!value) {
                         return 'Vous devez écrire quelque chose !';
                     }
                     const parsedValue = parseFloat(value);
@@ -518,7 +515,7 @@ export default function Pos() {
                 .then((response) => {
                     playSound(SuccessSound);
                     setProductUpdated(!productUpdated);
-                    // CHANGED: Add to local cart
+                    // FIXED: Add to local cart
                     addProductToCartLocal(response.data.product);
                     toast.success('Produit créé avec succès !');
                 })
@@ -534,7 +531,7 @@ export default function Pos() {
         }
     };
 
-    // CHANGED: Function to add product to cart - now uses local function
+    // FIXED: Function to add product to cart - now uses local function
     function addProductToCart(id) {
         const product = products.find(p => p.id === id);
         if (product) {
@@ -542,7 +539,7 @@ export default function Pos() {
         }
     }
 
-    // CHANGED: Function to empty cart - now uses local function
+    // FIXED: Function to empty cart - now uses local function
     function cartEmpty() {
         cartEmptyLocal();
     }
@@ -583,7 +580,7 @@ export default function Pos() {
                 return;
             }
 
-            // CHANGED: Prepare cart data for order
+            // FIXED: Prepare cart data for order
             const orderItems = cartItems.map(item => ({
                 product_id: item.product_id,
                 quantity: item.quantity,
@@ -607,7 +604,7 @@ export default function Pos() {
                 const orderResponse = await axios.put("/admin/order/create", orderData);
                 console.log('Order created successfully:', orderResponse.data);
 
-                // CHANGED: Clear local cart
+                // FIXED: Clear local cart
                 cartEmptyLocal();
                 setPaid(0);
 
@@ -630,7 +627,7 @@ export default function Pos() {
                 const orderResponse = await axios.put("/admin/order/create", orderData);
                 console.log('Order created with alternative data:', orderResponse.data);
 
-                // CHANGED: Clear local cart
+                // FIXED: Clear local cart
                 cartEmptyLocal();
                 setPaid(0);
 
@@ -669,7 +666,7 @@ export default function Pos() {
             return;
         }
 
-        // CHANGED: Prepare cart data for order
+        // FIXED: Prepare cart data for order
         const orderItems = cartItems.map(item => ({
             product_id: item.product_id,
             quantity: item.quantity,
@@ -685,7 +682,7 @@ export default function Pos() {
                 items: orderItems, // Send cart items
             })
             .then((res) => {
-                // CHANGED: Clear local cart instead of API call
+                // FIXED: Clear local cart instead of API call
                 cartEmptyLocal();
                 setPaid(0);
                 playSound(SuccessSound);
@@ -701,7 +698,7 @@ export default function Pos() {
     return (
         <>
             <div className="card">
-                <div className="mt-n5 mb-3 d-flex justify-content-end">
+                <div class="mt-n5 mb-3 d-flex justify-content-end">
                     <a
                         href="/admin/products"
                         className="btn bg-gradient-primary mr-2"
@@ -747,7 +744,7 @@ export default function Pos() {
                                     />
                                 </div>
                             </div>
-                            {/* CHANGED: Pass cartItems and local functions to Cart component */}
+                            {/* FIXED: Pass cartItems and local functions to Cart component */}
                             <Cart
                                 cartItems={cartItems}
                                 increment={incrementLocal}
@@ -760,7 +757,7 @@ export default function Pos() {
                                     <div className="row text-bold mb-1">
                                         <div className="col">Sous-total :</div>
                                         <div className="col text-right mr-2">
-                                            {total.toFixed(2)}
+                                            {total}
                                         </div>
                                     </div>
                                     <div className="row text-bold mb-1">
@@ -774,9 +771,13 @@ export default function Pos() {
                                                 disabled={total <= 0}
                                                 value={orderDiscount}
                                                 onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    const numValue = parseFloat(value);
-                                                    if (numValue > total || numValue < 0) {
+                                                    const value =
+                                                        e.target.value;
+                                                    if (
+                                                        parseFloat(value) >
+                                                        total ||
+                                                        parseFloat(value) < 0
+                                                    ) {
                                                         return;
                                                     }
                                                     setOrderDiscount(value);
@@ -794,25 +795,7 @@ export default function Pos() {
                                             {updateTotal}
                                         </div>
                                     </div>
-                                    <div className="row text-bold mb-1">
-                                        <div className="col">Payé :</div>
-                                        <div className="col text-right mr-2">
-                                            <input
-                                                type="number"
-                                                className="form-control form-control-sm"
-                                                placeholder="Montant payé"
-                                                min={0}
-                                                value={paid}
-                                                onChange={(e) => setPaid(parseFloat(e.target.value) || 0)}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="row text-bold mb-1">
-                                        <div className="col">À rendre :</div>
-                                        <div className="col text-right mr-2">
-                                            {due >= 0 ? due : "0.00"}
-                                        </div>
-                                    </div>
+
                                 </div>
                             </div>
                             <div className="row">
@@ -937,7 +920,9 @@ export default function Pos() {
                                 {products.length > 0 &&
                                     products.map((product, index) => (
                                         <div
-                                            onClick={() => addProductToCartLocal(product)} // FIXED: Use local function directly
+                                            onClick={() =>
+                                                addProductToCart(product.id)
+                                            }
                                             className="col-6 col-md-4 col-lg-3 mb-3"
                                             key={index}
                                             style={{ cursor: "pointer" }}
