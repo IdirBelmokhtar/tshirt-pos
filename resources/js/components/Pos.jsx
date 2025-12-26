@@ -46,15 +46,15 @@ export default function Pos() {
             (sum, item) => sum + (item.product?.discounted_price || 0) * item.quantity,
             0
         );
-        
+
         const totalDiscountItems = cartItems.reduce(
             (sum, item) => sum + (item.discount || 0),
             0
         );
-        
+
         const calculatedTotal = subtotal - totalDiscountItems - orderDiscount;
         const dueAmount = calculatedTotal - paid;
-        
+
         setTotal(subtotal);
         setUpdateTotal(calculatedTotal?.toFixed(2));
         setDue(dueAmount?.toFixed(2));
@@ -64,10 +64,10 @@ export default function Pos() {
     useEffect(() => {
         if (searchBarcode) {
             // Search through already loaded products
-            const productFound = products.find(product => 
+            const productFound = products.find(product =>
                 product.sku && product.sku.toString() === searchBarcode.trim()
             );
-            
+
             if (productFound) {
                 // Add to local cart
                 addProductToCartLocal(productFound);
@@ -75,7 +75,13 @@ export default function Pos() {
             } else {
                 // If not found in loaded products, try to fetch from API
                 if (searchBarcode.length > 0) {
-                    getProducts("", 1, searchBarcode);
+
+                    setTimeout(() => {
+                        setSearchBarcode(""); // Clear barcode input after adding
+
+                    }, 300);
+
+                    // getProducts("", 1, searchBarcode);
                 }
             }
         }
@@ -84,7 +90,7 @@ export default function Pos() {
     // CHANGED: Handle barcode special commands
     useEffect(() => {
         if (!searchBarcode) return;
-        
+
         if (searchBarcode === " ") { // SPACE → Checkout
             document.getElementById("checkoutBtn").click();
             setSearchBarcode("");
@@ -108,20 +114,20 @@ export default function Pos() {
                     params: { search, page, barcode },
                 });
                 const productsData = res.data;
-                
+
                 if (page === 1) {
                     setProducts(productsData.data); // Replace for first page
                 } else {
                     setProducts((prev) => [...prev, ...productsData.data]); // Append for subsequent pages
                 }
-                
+
                 // If searching by barcode and found exactly one product
                 if (barcode && productsData.data.length === 1) {
                     // Add to local cart
                     addProductToCartLocal(productsData.data[0]);
                     setSearchBarcode(""); // Clear barcode input
                 }
-                
+
                 setTotalPages(productsData.meta.last_page); // Get total pages
 
             } catch (error) {
@@ -132,7 +138,7 @@ export default function Pos() {
         },
         []
     );
-    
+
     const getUpdatedProducts = useCallback(async () => {
         try {
             const res = await axios.get('/admin/get/products');
@@ -143,7 +149,7 @@ export default function Pos() {
             console.error("Error fetching products:", error);
         }
     }, []);
-    
+
     useEffect(() => {
         // Load initial products
         getProducts("", 1, "");
@@ -152,7 +158,7 @@ export default function Pos() {
     // CHANGED: Local cart functions (no API calls)
     const addProductToCartLocal = (product) => {
         const existing = cartItems.find(item => item.product.id === product.id);
-        
+
         if (existing) {
             setCartItems(cartItems.map(item =>
                 item.product.id === product.id
@@ -169,7 +175,7 @@ export default function Pos() {
             };
             setCartItems([...cartItems, newCartItem]);
         }
-        
+
         playSound(SuccessSound);
         toast.success(`${product.name} ajouté au panier`);
         setSearchQuery("");
@@ -192,12 +198,12 @@ export default function Pos() {
     const decrementLocal = (id) => {
         const item = cartItems.find(item => item.id === id);
         if (!item) return;
-        
+
         if (item.quantity <= 1) {
             destroyLocal(id);
             return;
         }
-        
+
         setCartItems(cartItems.map(item =>
             item.id === id && item.quantity > 1
                 ? { ...item, quantity: item.quantity - 1 }
@@ -373,7 +379,7 @@ export default function Pos() {
             }, 300);
         }
     };
-    
+
     // NEW: Function to open Pay with Credit dialog
     const openPayWithCreditDialog = () => {
         setIsDialogOpen(true);
@@ -689,7 +695,7 @@ export default function Pos() {
             setTimeout(focusBarcodeInput, 100);
         }
     }
-    
+
     function orderCreate() {
         if (total <= 0) {
             return;
@@ -728,13 +734,13 @@ export default function Pos() {
                 setTimeout(focusBarcodeInput, 100);
             });
     }
-    
+
     // Filter products based on search query
     const filteredProducts = products.filter(product =>
-        searchQuery === "" || 
+        searchQuery === "" ||
         product.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-    
+
     return (
         <>
             <div className="card">
