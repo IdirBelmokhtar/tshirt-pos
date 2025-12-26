@@ -28,6 +28,11 @@ class AuthController extends Controller
     {
         if ($request->isMethod('post')) {
 
+            // If user provided a username (no domain), append @gmail.com and save it
+            if ($request->filled('email') && strpos($request->email, '@') === false) {
+                $request->merge(['email' => $request->email . '@gmail.com']);
+            }
+
             $request->validate(
                 [
                     'email' => 'required',

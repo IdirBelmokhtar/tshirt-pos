@@ -34,7 +34,7 @@ class CustomerController extends Controller
                     // Check if the user has permission to update customers
                     if (auth()->user()->can('customer_update')) {
                         $actionHtml .= '<a class="dropdown-item" href="' . route('backend.admin.customers.edit', $data->id) . '" ' . ($data->id == 1 ? 'onclick="event.preventDefault();"' : '') . '>
-            <i class="fas fa-edit"></i> Edit
+            <i class="fas fa-edit"></i> Modifier
         </a>';
                         $actionHtml .= '<div class="dropdown-divider"></div>';
                     }
@@ -45,7 +45,7 @@ class CustomerController extends Controller
             ' . csrf_field() . '
             ' . method_field("DELETE") . '
             <button type="submit" ' . ($data->id == 1 ? 'disabled' : '') . ' class="dropdown-item" onclick="return confirm(\'Are you sure?\')">
-                <i class="fas fa-trash"></i> Delete
+                <i class="fas fa-trash"></i> Supprimer
             </button>
         </form>';
                         $actionHtml .= '<div class="dropdown-divider"></div>';

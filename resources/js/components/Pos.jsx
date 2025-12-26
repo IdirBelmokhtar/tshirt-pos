@@ -749,14 +749,21 @@ export default function Pos() {
                         href="/admin/products"
                         className="btn bg-gradient-primary mr-2"
                     >
-                        Liste des produits
+                        Liste Produits
                     </a>
 
                     <a
                         href="/admin/orders"
-                        className="btn bg-gradient-primary"
+                        className="btn bg-gradient-success mr-2"
                     >
-                        Liste des ventes
+                        Liste Ventes
+                    </a>
+
+                    <a
+                        href="/admin/customers"
+                        className="btn bg-gradient-info mr-2"
+                    >
+                        Liste Clients
                     </a>
                     {/* NEW: Barcode focus status indicator */}
                     <div className="ml-2 d-flex align-items-center">

@@ -44,11 +44,11 @@
 
                         <div class="col-sm-6 col-lg-12 col-xl-6">
                             <div class="form-group">
-                                <label for="email" class="form-label">Adresse e-mail</label>
-                                <input type="email" class="form-control" id="email" placeholder="Entrez votre e-mail"
+                                <label for="email" class="form-label">Utilisateur</label>
+                                <input type="text" class="form-control" id="email" placeholder="Entrez votre utilisateur"
                                     autocomplete="off" name="email" required>
                                 <div class="invalid-feedback">
-                                    Veuillez entrer une adresse e-mail valide.
+                                    Veuillez entrer une Utilisateur valide.
                                 </div>
                             </div>
                         </div>

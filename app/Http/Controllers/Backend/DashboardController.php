@@ -71,6 +71,8 @@ class DashboardController extends Controller
 
         $data['months'] = $tempMonths;
         $data['totalAmountMonth'] = $tempTotalAmountMonth;
+        $total_credit = Customer::sum('credit');
+        $data['total_credit'] = $total_credit;
 
         return view('backend.index', $data);
     }
