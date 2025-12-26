@@ -87,7 +87,8 @@ export default function Pos() {
                     if (updateTotal <= 0) {
                         getProducts("", currentPage, "");
                     }
-                    document.querySelector('input[placeholder="Saisir la remise"]').click();
+                    // FIXED: Use the dialog function instead of clicking the input
+                    openDialog('discount');
                 }
                 if (barcode === "+") { // + → Ajouter autre article
                     // openAddProductDialog();
@@ -99,7 +100,7 @@ export default function Pos() {
                 setLoading(false); // Set loading to false
             }
         },
-        []
+        [updateTotal, currentPage] // Added dependencies
     );
     
     const getUpdatedProducts = useCallback(async () => {
@@ -190,6 +191,8 @@ export default function Pos() {
             const newDiscount = Math.min(Math.max(Number(discount) || 0, 0), maxDiscount);
             return { ...item, discount: newDiscount };
         }));
+        playSound(SuccessSound);
+        toast.success('Remise appliquée avec succès');
     };
 
     // CHANGED: Local cart empty
@@ -280,7 +283,7 @@ export default function Pos() {
                     // This will be called when confirm button is clicked
                 },
                 inputValidator: (value) => {
-                    if (!value) {
+                    if (!value && value !== 0) {
                         return 'Vous devez écrire quelque chose !';
                     }
                     const parsedValue = parseFloat(value);
@@ -698,7 +701,7 @@ export default function Pos() {
     return (
         <>
             <div className="card">
-                <div class="mt-n5 mb-3 d-flex justify-content-end">
+                <div className="mt-n5 mb-3 d-flex justify-content-end">
                     <a
                         href="/admin/products"
                         className="btn bg-gradient-primary mr-2"
@@ -757,7 +760,7 @@ export default function Pos() {
                                     <div className="row text-bold mb-1">
                                         <div className="col">Sous-total :</div>
                                         <div className="col text-right mr-2">
-                                            {total}
+                                            {total.toFixed(2)}
                                         </div>
                                     </div>
                                     <div className="row text-bold mb-1">
@@ -771,13 +774,9 @@ export default function Pos() {
                                                 disabled={total <= 0}
                                                 value={orderDiscount}
                                                 onChange={(e) => {
-                                                    const value =
-                                                        e.target.value;
-                                                    if (
-                                                        parseFloat(value) >
-                                                        total ||
-                                                        parseFloat(value) < 0
-                                                    ) {
+                                                    const value = e.target.value;
+                                                    const numValue = parseFloat(value);
+                                                    if (numValue > total || numValue < 0) {
                                                         return;
                                                     }
                                                     setOrderDiscount(value);
@@ -795,7 +794,25 @@ export default function Pos() {
                                             {updateTotal}
                                         </div>
                                     </div>
-
+                                    <div className="row text-bold mb-1">
+                                        <div className="col">Payé :</div>
+                                        <div className="col text-right mr-2">
+                                            <input
+                                                type="number"
+                                                className="form-control form-control-sm"
+                                                placeholder="Montant payé"
+                                                min={0}
+                                                value={paid}
+                                                onChange={(e) => setPaid(parseFloat(e.target.value) || 0)}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="row text-bold mb-1">
+                                        <div className="col">À rendre :</div>
+                                        <div className="col text-right mr-2">
+                                            {due >= 0 ? due : "0.00"}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div className="row">
@@ -920,9 +937,7 @@ export default function Pos() {
                                 {products.length > 0 &&
                                     products.map((product, index) => (
                                         <div
-                                            onClick={() =>
-                                                addProductToCart(product.id)
-                                            }
+                                            onClick={() => addProductToCartLocal(product)} // FIXED: Use local function directly
                                             className="col-6 col-md-4 col-lg-3 mb-3"
                                             key={index}
                                             style={{ cursor: "pointer" }}
