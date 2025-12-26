@@ -60,6 +60,95 @@ export default function Pos() {
         setDue(dueAmount?.toFixed(2));
     }, [cartItems, orderDiscount, paid]);
 
+    // CHANGED: Handle barcode search locally
+    useEffect(() => {
+        if (searchBarcode) {
+            // Search through already loaded products
+            const productFound = products.find(product => 
+                product.sku && product.sku.toString() === searchBarcode.trim()
+            );
+            
+            if (productFound) {
+                // Add to local cart
+                addProductToCartLocal(productFound);
+                setSearchBarcode(""); // Clear barcode input after adding
+            } else {
+                // If not found in loaded products, try to fetch from API
+                if (searchBarcode.length > 0) {
+                    getProducts("", 1, searchBarcode);
+                }
+            }
+        }
+    }, [searchBarcode, products]);
+
+    // CHANGED: Handle barcode special commands
+    useEffect(() => {
+        if (!searchBarcode) return;
+        
+        if (searchBarcode === " ") { // SPACE → Checkout
+            document.getElementById("checkoutBtn").click();
+            setSearchBarcode("");
+        } else if (searchBarcode === "0") { // 0 → Clear
+            cartEmptyLocal();
+            setSearchBarcode("");
+        } else if (searchBarcode === "-") { // - → Open Discount
+            openDialog('discount');
+            setSearchBarcode("");
+        } else if (searchBarcode === "+") { // + → Ajouter autre article
+            // openAddProductDialog();
+            setSearchBarcode("");
+        }
+    }, [searchBarcode]);
+
+    const getProducts = useCallback(
+        async (search = "", page = 1, barcode = "") => {
+            setLoading(true);
+            try {
+                const res = await axios.get('/admin/get/products', {
+                    params: { search, page, barcode },
+                });
+                const productsData = res.data;
+                
+                if (page === 1) {
+                    setProducts(productsData.data); // Replace for first page
+                } else {
+                    setProducts((prev) => [...prev, ...productsData.data]); // Append for subsequent pages
+                }
+                
+                // If searching by barcode and found exactly one product
+                if (barcode && productsData.data.length === 1) {
+                    // Add to local cart
+                    addProductToCartLocal(productsData.data[0]);
+                    setSearchBarcode(""); // Clear barcode input
+                }
+                
+                setTotalPages(productsData.meta.last_page); // Get total pages
+
+            } catch (error) {
+                console.error("Error fetching products:", error);
+            } finally {
+                setLoading(false); // Set loading to false
+            }
+        },
+        []
+    );
+    
+    const getUpdatedProducts = useCallback(async () => {
+        try {
+            const res = await axios.get('/admin/get/products');
+            const productsData = res.data;
+            setProducts(productsData.data);
+            setTotalPages(productsData.meta.last_page); // Get total pages
+        } catch (error) {
+            console.error("Error fetching products:", error);
+        }
+    }, []);
+    
+    useEffect(() => {
+        // Load initial products
+        getProducts("", 1, "");
+    }, [productUpdated]);
+
     // CHANGED: Local cart functions (no API calls)
     const addProductToCartLocal = (product) => {
         const existing = cartItems.find(item => item.product.id === product.id);
@@ -144,77 +233,13 @@ export default function Pos() {
         setTimeout(focusBarcodeInput, 100);
     };
 
-    const getProducts = useCallback(
-        async (search = "", page = 1, barcode = "") => {
-            setLoading(true);
-            try {
-                const res = await axios.get('/admin/get/products', {
-                    params: { search, page, barcode },
-                });
-                const productsData = res.data;
-                setProducts((prev) => [...prev, ...productsData.data]); // Append new products
-                if (productsData.data.length === 1 && barcode != "") {
-                    // FIXED: Add to LOCAL cart instead of API call
-                    addProductToCartLocal(productsData.data[0]);
-                }
-                setTotalPages(productsData.meta.last_page); // Get total pages
-
-                // Here i verifie every caracter of searchBarcode is written
-                setSearchBarcode("");
-                if (barcode === " ") { // SPACE → Checkout
-                    document.getElementById("checkoutBtn").click();
-                }
-                if (barcode === "0") { // 0 → Clear
-                    cartEmptyLocal(); // FIXED: Call local function
-                }
-                if (barcode === "-") { // - → Open Discount
-                    if (updateTotal <= 0) {
-                        getProducts("", currentPage, "");
-                    }
-                    document.querySelector('input[placeholder="Saisir la remise"]').click();
-                }
-                if (barcode === "+") { // + → Ajouter autre article
-                    // openAddProductDialog();
-                }
-
-            } catch (error) {
-                console.error("Error fetching products:", error);
-            } finally {
-                setLoading(false); // Set loading to false
-            }
-        },
-        []
-    );
-    
-    const getUpdatedProducts = useCallback(async () => {
-        try {
-            const res = await axios.get('/admin/get/products');
-            const productsData = res.data;
-            setProducts(productsData.data);
-            setTotalPages(productsData.meta.last_page); // Get total pages
-        } catch (error) {
-            console.error("Error fetching products:", error);
-        }
-    }, []);
-    
-    useEffect(() => {
-        getUpdatedProducts();
-    }, [productUpdated]);
-
     useEffect(() => {
         if (searchQuery) {
+            // Reset to first page and search
             setProducts([]);
-            getProducts(searchQuery, currentPage, "");
+            getProducts(searchQuery, 1, "");
         }
-        setSearchBarcode("");
-    }, [currentPage, searchQuery]);
-
-    useEffect(() => {
-        if (searchBarcode) {
-            setProducts([]);
-            getProducts("", currentPage, searchBarcode);
-        }
-    }, [searchBarcode]);
+    }, [searchQuery]);
 
     // Infinite scroll logic
     useEffect(() => {
@@ -225,7 +250,9 @@ export default function Pos() {
             ) {
                 // Load next page if not on the last page
                 if (currentPage < totalPages) {
-                    setCurrentPage((prev) => prev + 1);
+                    const nextPage = currentPage + 1;
+                    setCurrentPage(nextPage);
+                    getProducts(searchQuery, nextPage, "");
                 }
             }
         };
@@ -234,7 +261,14 @@ export default function Pos() {
         return () => {
             window.removeEventListener("scroll", handleScroll);
         };
-    }, [currentPage, totalPages]);
+    }, [currentPage, totalPages, searchQuery]);
+
+    // Load more products when page changes
+    useEffect(() => {
+        if (currentPage > 1 && !searchQuery) {
+            getProducts("", currentPage, "");
+        }
+    }, [currentPage]);
 
     // NEW: Function to focus on barcode input
     const focusBarcodeInput = () => {
@@ -280,7 +314,7 @@ export default function Pos() {
                     // This will be called when confirm button is clicked
                 },
                 inputValidator: (value) => {
-                    if (!value) {
+                    if (!value && value !== 0) {
                         return 'Vous devez écrire quelque chose !';
                     }
                     const parsedValue = parseFloat(value);
@@ -515,7 +549,7 @@ export default function Pos() {
                 .then((response) => {
                     playSound(SuccessSound);
                     setProductUpdated(!productUpdated);
-                    // FIXED: Add to local cart
+                    // CHANGED: Add to local cart
                     addProductToCartLocal(response.data.product);
                     toast.success('Produit créé avec succès !');
                 })
@@ -531,7 +565,7 @@ export default function Pos() {
         }
     };
 
-    // FIXED: Function to add product to cart - now uses local function
+    // CHANGED: Function to add product to cart - now uses local function
     function addProductToCart(id) {
         const product = products.find(p => p.id === id);
         if (product) {
@@ -539,7 +573,7 @@ export default function Pos() {
         }
     }
 
-    // FIXED: Function to empty cart - now uses local function
+    // CHANGED: Function to empty cart - now uses local function
     function cartEmpty() {
         cartEmptyLocal();
     }
@@ -580,7 +614,7 @@ export default function Pos() {
                 return;
             }
 
-            // FIXED: Prepare cart data for order
+            // CHANGED: Prepare cart data for order
             const orderItems = cartItems.map(item => ({
                 product_id: item.product_id,
                 quantity: item.quantity,
@@ -604,7 +638,7 @@ export default function Pos() {
                 const orderResponse = await axios.put("/admin/order/create", orderData);
                 console.log('Order created successfully:', orderResponse.data);
 
-                // FIXED: Clear local cart
+                // CHANGED: Clear local cart
                 cartEmptyLocal();
                 setPaid(0);
 
@@ -627,7 +661,7 @@ export default function Pos() {
                 const orderResponse = await axios.put("/admin/order/create", orderData);
                 console.log('Order created with alternative data:', orderResponse.data);
 
-                // FIXED: Clear local cart
+                // CHANGED: Clear local cart
                 cartEmptyLocal();
                 setPaid(0);
 
@@ -666,7 +700,7 @@ export default function Pos() {
             return;
         }
 
-        // FIXED: Prepare cart data for order
+        // CHANGED: Prepare cart data for order
         const orderItems = cartItems.map(item => ({
             product_id: item.product_id,
             quantity: item.quantity,
@@ -682,7 +716,7 @@ export default function Pos() {
                 items: orderItems, // Send cart items
             })
             .then((res) => {
-                // FIXED: Clear local cart instead of API call
+                // CHANGED: Clear local cart instead of API call
                 cartEmptyLocal();
                 setPaid(0);
                 playSound(SuccessSound);
@@ -694,6 +728,12 @@ export default function Pos() {
                 setTimeout(focusBarcodeInput, 100);
             });
     }
+    
+    // Filter products based on search query
+    const filteredProducts = products.filter(product =>
+        searchQuery === "" || 
+        product.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
     
     return (
         <>
@@ -744,7 +784,7 @@ export default function Pos() {
                                     />
                                 </div>
                             </div>
-                            {/* FIXED: Pass cartItems and local functions to Cart component */}
+                            {/* CHANGED: Pass cartItems and local functions to Cart component */}
                             <Cart
                                 cartItems={cartItems}
                                 increment={incrementLocal}
@@ -917,8 +957,8 @@ export default function Pos() {
                                 </div>
                             </div>
                             <div className="row products-card-container">
-                                {products.length > 0 &&
-                                    products.map((product, index) => (
+                                {filteredProducts.length > 0 &&
+                                    filteredProducts.map((product, index) => (
                                         <div
                                             onClick={() =>
                                                 addProductToCart(product.id)
