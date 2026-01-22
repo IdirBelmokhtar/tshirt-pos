@@ -36,9 +36,11 @@ class OrderController extends Controller
                 ->addColumn('action', function ($data) {
                     $buttons = '';
 
-                    $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Invoice</a>';
+                    $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Pos Invoice</a>';
+                    $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Facture</a>';
 
-                    // $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Pos Invoice</a>';
+                    if (auth()->user()->can('sale_delete'))
+                        $buttons .= '<a class="btn btn-danger btn-sm" href="' . route('backend.admin.orders.delete', $data->id) . '"><i class="fas fa-file-invoice"></i> Supprimer</a>';
                     // if (!$data->status) {
                     //     $buttons .= '<a class="btn btn-warning btn-sm" href="' . route('backend.admin.due.collection', $data->id) . '"><i class="fas fa-receipt"></i> Due Collection</a>';
                     // }
@@ -217,6 +219,15 @@ class OrderController extends Controller
     {
         $order = Order::with(['customer', 'products.product'])->findOrFail($id);
         return view('backend.orders.print-invoice', compact('order'));
+    }
+    public function delete($id)
+    {
+        abort_if(!auth()->user()->can('sale_delete'), 403);
+
+        $user = Order::findOrFail($id);
+        $user->delete();
+
+        return back()->with('success', 'Order successfully deleted');
     }
     public function collection(Request $request, $id)
     {

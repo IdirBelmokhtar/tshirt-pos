@@ -73,14 +73,14 @@
           <td><strong>Total:</strong></td>
           <td class="text-right"><strong>{{number_format($order->total, 2) }}</strong></td>
         </tr>
-        <tr>
+        {{-- <tr>
           <td>Paid:</td>
           <td class="text-right">{{number_format($order->paid, 2) }}</td>
         </tr>
         <tr>
           <td>Due:</td>
           <td class="text-right">{{number_format($order->due, 2) }}</td>
-        </tr>
+        </tr> --}}
       </table>
     </div>
     <hr>
@@ -139,5 +139,8 @@
 @push('script')
 <script>
   window.print();
+  setTimeout(() => {
+    window.history.back();
+  }, 500);
 </script>
 @endpush

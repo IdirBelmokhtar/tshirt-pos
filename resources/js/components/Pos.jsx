@@ -34,6 +34,7 @@ export default function Pos() {
     const isDialogOpenRef = useRef(false);
     const fullDomainWithPort = `${protocol}//${hostname}${port ? `:${port}` : ""
         }`;
+    const [withPrint, setWithPrint] = useState(false);
 
     // NEW: Update ref when state changes
     useEffect(() => {
@@ -103,6 +104,12 @@ export default function Pos() {
         } else if (searchBarcode === "+") { // + → Ajouter autre article
             // openAddProductDialog();
             setSearchBarcode("");
+        } else if (searchBarcode === "=") { // = → Checkout with Print
+            setWithPrint(true);
+            setTimeout(() => {
+                document.getElementById("checkoutBtn").click();
+                setSearchBarcode("");
+            }, 300);
         }
     }, [searchBarcode]);
 
@@ -728,6 +735,10 @@ export default function Pos() {
                 playSound(SuccessSound);
                 toast.success('Commande créée avec succès!');
                 setTimeout(focusBarcodeInput, 100);
+                if(withPrint) {
+                    setWithPrint(false);
+                    window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
+                }
             })
             .catch((err) => {
                 toast.error(err.response.data.message);

@@ -50,11 +50,11 @@ class ReportController extends Controller
 
         abort_if(!auth()->user()->can('reports_summary'), 403);
         // Get user input or set default values
-        $start_date_input = $request->input('start_date', Carbon::today()->subDays(29)->format('Y-m-d'));
+        $start_date_input = $request->input('start_date', Carbon::today()->format('Y-m-d'));
         $end_date_input = $request->input('end_date', Carbon::today()->format('Y-m-d'));
 
         // Parse and set start date
-        $start_date = Carbon::createFromFormat('Y-m-d', $start_date_input) ?: Carbon::today()->subDays(29)->startOfDay();
+        $start_date = Carbon::createFromFormat('Y-m-d', $start_date_input) ?: Carbon::today()->startOfDay();
         $start_date = $start_date->startOfDay();
 
         // Parse and set end date
