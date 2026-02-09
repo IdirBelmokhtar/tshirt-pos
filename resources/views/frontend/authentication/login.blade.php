@@ -127,8 +127,8 @@
                                 <button type="submit" class="create-account-btn w-100">Se connecter</button>
                             </div>
                             <div class="form-group"> <br>
-                            <p><b>Utilisateur :</b> caisse@gmail.com</p>
-                            <p><b>Mot de passe :</b> 12345678</p>
+                            <p><b>Utilisateur :</b> 000000</p>
+                            <p><b>Mot de passe :</b> 000000</p>
                             </div>
                         </div>
 

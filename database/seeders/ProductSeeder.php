@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Brand;
 use App\Models\Unit;
 use Faker\Factory as Faker;
+use Illuminate\Support\Facades\DB;
 
 class ProductSeeder extends Seeder
 {
@@ -31,22 +32,24 @@ class ProductSeeder extends Seeder
 
         // Create random products
         for ($i = 0; $i < 50; $i++) {
+            $maxSku = Product::where('sku', 'like', 'N%')
+                ->select(DB::raw('MAX(CAST(SUBSTRING(sku, 2) AS UNSIGNED)) as max_number'))
+                ->first();
+
+            $number = $maxSku->max_number ? $maxSku->max_number + 1 : 1;
+            $sku = 'N' . str_pad($number, 5, '0', STR_PAD_LEFT);
+
             Product::create([
                 'image' => '',
                 'name' => $faker->name(),
                 'slug' => $faker->slug(),
-                'sku' => $faker->unique()->uuid(),
+                'sku' => $sku,
                 'description' => $faker->paragraph(),
                 'category_id' => Category::inRandomOrder()->first()->id,
-                'brand_id' => Brand::inRandomOrder()->first()->id,
-                'unit_id' => Unit::inRandomOrder()->first()->id,
                 'price' => $faker->numberBetween(101, 1000),
-                'discount' => $faker->numberBetween(0, 100),
-                'discount_type' => $faker->randomElement(['fixed', 'percentage']),
                 'purchase_price' => $faker->numberBetween(1, 900),
-                'quantity' => 0,
-                'expire_date' => $faker->dateTimeBetween('now', '+1 year'),
-                'status' => $faker->boolean() ? 1 : 0,
+                'quantity' => 10,
+                'status' => 1,
             ]);
         }
     }
